@@ -1,0 +1,39 @@
+name: Pop
+options:
+  bundleIdPrefix: app.baomi
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+  developmentLanguage: "zh-Hans"
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+
+targets:
+  Pop:
+    type: application
+    platform: macOS
+    sources:
+      - Sources/Pop
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.baomi.pop
+        PRODUCT_NAME: Pop
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: App/Info.plist
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "-"
+        ENABLE_HARDENED_RUNTIME: YES
+        CODE_SIGN_ENTITLEMENTS: App/Pop.entitlements
+        COMBINE_HIDPI_IMAGES: YES
+
+schemes:
+  Pop:
+    build:
+      targets:
+        Pop: all
+    run:
+      config: Debug

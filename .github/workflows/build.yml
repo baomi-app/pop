@@ -1,0 +1,51 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Pop.app
+    runs-on: macos-14
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build (Release)
+        run: |
+          xcodebuild \
+            -project Pop.xcodeproj \
+            -scheme Pop \
+            -configuration Release \
+            -derivedDataPath .build \
+            CODE_SIGN_IDENTITY=- \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Locate built app
+        id: app
+        run: echo "path=.build/Build/Products/Release/Pop.app" >> "$GITHUB_OUTPUT"
+
+      - name: Zip app
+        run: ditto -c -k --keepParent "${{ steps.app.outputs.path }}" Pop.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Pop
+          path: Pop.zip
+          if-no-files-found: error
