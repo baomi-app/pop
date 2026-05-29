@@ -1,6 +1,7 @@
 {
   "name": "Pop",
   "status": "released",
+  "icon": "icon.png",
   "platform": { "en": "macOS", "zh": "macOS" },
   "tagline": {
     "en": "A macOS screenshot tool — click, instant capture.",
