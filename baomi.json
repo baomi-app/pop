@@ -1,7 +1,7 @@
 {
   "name": "Pop",
   "status": "released",
-  "icon": "icon.png",
+  "icon": "icon.svg",
   "accent": { "from": "#fbbf24", "to": "#f97316" },
   "platform": { "en": "macOS", "zh": "macOS" },
   "tagline": {

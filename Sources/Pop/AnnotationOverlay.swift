@@ -254,6 +254,9 @@ final class AnnotationCanvasView: NSView {
     /// Called when the move tool shifts the selection, so the dimming overlay underneath
     /// can move its cut-out to stay aligned with the screenshot block.
     var onSelRectChanged: ((CGRect) -> Void)?
+    /// Called once a move gesture ends, so the toolbar can re-anchor to the new position.
+    /// (It deliberately stays still during the drag.)
+    var onMoveEnded: ((CGRect) -> Void)?
 
     init(baseCG: CGImage, selRect: CGRect, exportScale: CGFloat, model: OverlayModel) {
         self.baseCG = baseCG
@@ -375,7 +378,10 @@ final class AnnotationCanvasView: NSView {
     }
 
     override func mouseUp(with event: NSEvent) {
-        movePrev = nil
+        if movePrev != nil {
+            movePrev = nil
+            onMoveEnded?(selRect)   // move finished: let the toolbar re-anchor
+        }
         guard let d = draft else { return }
         draft = nil
         if d.isMeaningful { annotations.append(d) }
@@ -528,6 +534,21 @@ final class AnnotationOverlayController {
         toolbar.frame = NSRect(x: tbX, y: tbY, width: tbW, height: tbH)
         canvas.addSubview(toolbar)
 
+        // After a move ends, glide the toolbar to the capture's new position (below if
+        // there's room, otherwise above; clamped on-screen). It stays put during the drag.
+        canvas.onMoveEnded = { [weak toolbar] rect in
+            guard let toolbar else { return }
+            var x = rect.midX - tbW / 2
+            x = min(max(x, 8), screen.frame.width - tbW - 8)
+            var y = rect.minY - tbH - 10
+            if y < 8 { y = min(rect.maxY + 10, screen.frame.height - tbH - 8) }
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = 0.16
+                ctx.allowsImplicitAnimation = true
+                toolbar.animator().frame = NSRect(x: x, y: y, width: tbW, height: tbH)
+            }
+        }
+
         win.contentView = canvas
         self.window = win
         self.canvas = canvas
@@ -589,6 +610,11 @@ final class AnnotationOverlayController {
             let rep = NSBitmapImageRep(cgImage: cgImage)
             guard let data = rep.representation(using: .png, properties: [:]) else { return }
             try data.write(to: url)
+            // Also put it on the clipboard and give the "pop" feedback, matching finalize().
+            ClipboardService.copy(cgImage)
+            if HotkeyStore.shared.toastEnabled {
+                Toast.show(Brand.Copy.saved)
+            }
         } catch {
             NSLog("[Pop] Save failed: \(error)")
         }

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- 1. Pure Flat White macOS Squircle Background (inset by 10px, rx=111.5 for perfect continuous curvature) -->
+  <rect x="10" y="10" width="492" height="492" rx="111.5" fill="#ffffff" />
+
+  <!-- 2. Four Flat Tech-Green (#4ade80) Viewfinder Corner Brackets with Breathing Room -->
+  <path 
+    d="M 120 175 L 120 120 L 175 120 M 337 120 L 392 120 L 392 175 M 120 337 L 120 392 L 175 392 M 337 392 L 392 392 L 392 337" 
+    stroke="#4ade80" 
+    stroke-width="20" 
+    stroke-linecap="round" 
+    stroke-linejoin="round" 
+    fill="none"
+  />
+
+  <!-- 3. Symmetrical, Flat Golden-Yellow (#fbbf24) Tilted Corn Cob in the Center -->
+  <path 
+    d="M 9.0 16.5 C 9.0 10.5, 10.0 5.5, 12 5.5 C 14.0 5.5, 15.0 10.5, 15.0 16.5 C 15.0 18.2, 13.8 19, 12 19 C 10.2 19, 9.0 18.2, 9.0 16.5 Z" 
+    fill="#fbbf24" 
+    transform="translate(256, 256) rotate(45) scale(16.5) translate(-12, -12.25)"
+  />
+</svg>
