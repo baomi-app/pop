@@ -2,6 +2,7 @@
   "name": "Pop",
   "status": "released",
   "icon": "icon.png",
+  "accent": { "from": "#fbbf24", "to": "#f97316" },
   "platform": { "en": "macOS", "zh": "macOS" },
   "tagline": {
     "en": "A macOS screenshot tool — click, instant capture.",
