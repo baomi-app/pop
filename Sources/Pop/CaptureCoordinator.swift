@@ -1,5 +1,6 @@
 import AppKit
 import ScreenCaptureKit
+import CoreGraphics
 
 /// 截图流程编排：触发捕获 → 复制剪贴板 + 保存文件 → 记历史 → "爆"反馈。
 @MainActor
@@ -8,6 +9,18 @@ final class CaptureCoordinator {
 
     /// 统一截图模式：拖拽=区域，单击=窗口，回车=全屏，Esc=取消。
     func unified() {
+        // 先确认屏幕录制权限，否则浮层拉起来也没用
+        guard CGPreflightScreenCaptureAccess() else {
+            Toast.show(String(localized: "需要屏幕录制权限。授权后退出 Pop 再打开。"))
+            // 触发系统弹窗（首次）；非首次则直接打开系统设置
+            if !CGRequestScreenCaptureAccess() {
+                if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
+                    NSWorkspace.shared.open(url)
+                }
+            }
+            return
+        }
+
         RegionSelectionController.shared.begin { [weak self] intent, screen in
             guard let self else { return }
             switch intent {

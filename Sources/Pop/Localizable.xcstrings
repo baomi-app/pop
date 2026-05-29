@@ -460,6 +460,23 @@
         }
       }
     },
+    "需要屏幕录制权限。授权后退出 Pop 再打开。" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Screen Recording permission required. Authorize it, then quit and reopen Pop."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要屏幕录制权限。授权后退出 Pop 再打开。"
+          }
+        }
+      }
+    },
     "切换失败，请到系统设置 › 通用 › 登录项中手动启用。" : {
       "extractionState" : "manual",
       "localizations" : {
