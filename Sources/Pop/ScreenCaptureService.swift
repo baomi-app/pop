@@ -8,16 +8,16 @@ enum CaptureError: Error {
     case encodeFailed
 }
 
-/// 基于 ScreenCaptureKit 的静态截图服务（macOS 14+）。
+/// Still-image screenshot service built on ScreenCaptureKit (macOS 14+).
 enum ScreenCaptureService {
 
     static func shareableContent() async throws -> SCShareableContent {
         try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
     }
 
-    // MARK: - 全屏
+    // MARK: - Full screen
 
-    /// 按 NSScreen 截全屏。
+    /// Capture a full screen by NSScreen.
     static func captureFullScreen(of screen: NSScreen) async throws -> CGImage {
         let content = try await shareableContent()
         let display = content.displays.first { $0.displayID == screen.displayID }
@@ -26,16 +26,16 @@ enum ScreenCaptureService {
         return try await capture(display: display, cropRect: nil, scale: scale(for: display))
     }
 
-    // MARK: - 区域
+    // MARK: - Region
 
-    /// cropRect：display 坐标系内、左上角为原点的「点」矩形。
+    /// cropRect: a point rect in the display's coordinate space, origin at top-left.
     static func captureRegion(_ cropRect: CGRect, on display: SCDisplay) async throws -> CGImage {
         try await capture(display: display, cropRect: cropRect, scale: scale(for: display))
     }
 
-    // MARK: - 窗口
+    // MARK: - Window
 
-    /// 按指定 SCWindow 截图。
+    /// Capture a specific SCWindow.
     static func capture(_ window: SCWindow) async throws -> CGImage {
         let filter = SCContentFilter(desktopIndependentWindow: window)
         let config = SCStreamConfiguration()
@@ -47,7 +47,7 @@ enum ScreenCaptureService {
         return try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
     }
 
-    // MARK: - 核心
+    // MARK: - Core
 
     private static func capture(display: SCDisplay, cropRect: CGRect?, scale: CGFloat) async throws -> CGImage {
         let filter = SCContentFilter(display: display, excludingWindows: [])
@@ -69,13 +69,14 @@ enum ScreenCaptureService {
         return full.cropping(to: px) ?? full
     }
 
-    // MARK: - 工具
+    // MARK: - Helpers
 
     static func scale(for display: SCDisplay) -> CGFloat {
         NSScreen.screens.first { $0.displayID == display.displayID }?.backingScaleFactor ?? 2.0
     }
 
-    /// 把「全局屏幕坐标（左下原点）」矩形转成「display 局部、左上原点」的点矩形。
+    /// Convert a rect in global screen coordinates (bottom-left origin) into a
+    /// point rect local to the display, with a top-left origin.
     static func topLeftRect(_ rect: CGRect, in screen: NSScreen) -> CGRect {
         let f = screen.frame
         return CGRect(

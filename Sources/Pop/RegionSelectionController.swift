@@ -2,14 +2,14 @@ import AppKit
 import ScreenCaptureKit
 import Carbon.HIToolbox
 
-/// 统一截图选择层（覆盖全部屏幕）。
-/// - 鼠标悬停：高亮命中窗口
-/// - 单击：截击中窗口
-/// - 拖拽：区域截图
-/// - Return / Enter：全屏（取光标所在屏幕）
-/// - Esc：取消
+/// Unified capture selection overlay (covers every screen).
+/// - Hover: highlight the window under the cursor
+/// - Click: capture the hit window
+/// - Drag: region capture
+/// - Return / Enter: full screen (the screen under the cursor)
+/// - Esc: cancel
 enum CaptureIntent {
-    case region(CGRect)        // NSScreen 全局坐标（左下原点）
+    case region(CGRect)        // Global NSScreen coordinates (bottom-left origin)
     case window(SCWindow)
     case fullScreen
     case cancel
@@ -35,7 +35,7 @@ final class RegionSelectionController {
                 win.isOnScreen
                     && win.owningApplication != nil
                     && win.owningApplication?.bundleIdentifier != myBundle
-                    && win.windowLayer == 0                 // 仅普通应用窗口（排除 Dock、壁纸、菜单）
+                    && win.windowLayer == 0                 // Regular app windows only (exclude Dock, wallpaper, menus)
                     && win.frame.width > 40 && win.frame.height > 40
             }
             await MainActor.run {
@@ -77,7 +77,8 @@ final class RegionSelectionController {
         }
         windows.first?.makeKey()
 
-        // 出现后立刻按当前鼠标位置触发一次高亮，避免必须先移动鼠标
+        // Trigger a highlight at the current mouse position right away, so the user
+        // doesn't have to move the mouse first.
         let mouse = NSEvent.mouseLocation
         for win in windows where win.frame.contains(mouse) {
             (win.contentView as? SelectionView)?.updateHoverFromGlobalMouse()
@@ -96,7 +97,7 @@ final class RegionSelectionController {
     }
 }
 
-// MARK: - 选择窗口
+// MARK: - Selection window
 
 final class SelectionWindow: NSWindow {
     var onIntent: ((CaptureIntent) -> Void)?
@@ -139,7 +140,7 @@ final class SelectionWindow: NSWindow {
     override var acceptsFirstResponder: Bool { true }
 }
 
-// MARK: - 选择视图
+// MARK: - Selection view
 
 private enum LocalIntent {
     case region(NSRect)
@@ -232,7 +233,7 @@ final class SelectionView: NSView {
         if didDrag, let rect = currentRect, rect.width > 4, rect.height > 4 {
             onLocalIntent?(.region(rect))
         } else {
-            // 单击：截当前悬停的窗口
+            // Click: capture the currently hovered window.
             if let win = hoveredWindow {
                 onLocalIntent?(.window(win))
             }
@@ -262,8 +263,8 @@ final class SelectionView: NSView {
         }
     }
 
-    /// 找到本视图局部坐标 `localPoint` 下的最上层 SCWindow。
-    /// 返回 (SCWindow, 局部矩形)。
+    /// Find the topmost SCWindow under `localPoint` (in this view's local coordinates).
+    /// Returns (SCWindow, local rect).
     private func topmostWindow(atLocal localPoint: NSPoint) -> (SCWindow, NSRect)? {
         guard let win = window else { return nil }
         let globalPoint = win.convertPoint(toScreen: localPoint)
@@ -283,7 +284,7 @@ final class SelectionView: NSView {
         return (hit, viewRect)
     }
 
-    /// CG 坐标原点在的那个屏幕（NSScreen frame.origin == .zero）。
+    /// The screen whose origin is the CG coordinate origin (NSScreen frame.origin == .zero).
     private static func primaryScreen() -> NSScreen {
         NSScreen.screens.first(where: { $0.frame.origin == .zero })
             ?? NSScreen.main
@@ -296,7 +297,7 @@ final class SelectionView: NSView {
 
         drawHint()
 
-        // 区域选择优先
+        // Region selection takes priority.
         if let rect = currentRect, didDrag {
             NSColor.clear.setFill()
             rect.fill(using: .copy)
@@ -320,7 +321,7 @@ final class SelectionView: NSView {
             return
         }
 
-        // 窗口高亮
+        // Window highlight.
         if let rect = hoveredLocalRect {
             let clipped = rect.intersection(bounds)
             guard !clipped.isNull, !clipped.isEmpty else { return }

@@ -3,7 +3,7 @@ import AppKit
 import Carbon.HIToolbox
 import ServiceManagement
 
-/// 偏好设置（macOS 系统设置风格）。
+/// Preferences pane (macOS System Settings style).
 struct SettingsView: View {
     @ObservedObject var store: HotkeyStore = .shared
     @State private var recording = false
@@ -101,9 +101,9 @@ struct SettingsView: View {
             }
             launchErrorMessage = nil
         } catch {
-            NSLog("[Pop] 开机启动切换失败：\(error)")
+            NSLog("[Pop] Toggle launch-at-login failed: \(error)")
             launchErrorMessage = String(localized: "切换失败，请到系统设置 › 通用 › 登录项中手动启用。")
-            // 状态回滚，跟系统真实状态对齐
+            // Roll back to match the real system state.
             launchAtLogin = (SMAppService.mainApp.status == .enabled)
         }
     }
@@ -121,7 +121,7 @@ struct SettingsView: View {
     }
 }
 
-// MARK: - 按键录制器
+// MARK: - Key recorder
 
 struct KeyRecorderView: NSViewRepresentable {
     @Binding var config: HotkeyConfig
@@ -202,7 +202,7 @@ final class RecorderView: NSView {
     }
 }
 
-// MARK: - 窗口呈现
+// MARK: - Window presentation
 
 @MainActor
 final class SettingsWindowController {

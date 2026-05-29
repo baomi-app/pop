@@ -2,7 +2,7 @@ import AppKit
 import CoreGraphics
 
 enum ImageSaver {
-    /// 保存到 ~/Pictures/Pop/Pop-时间戳.png
+    /// Save to ~/Pictures/Pop/Pop-<timestamp>.png
     @discardableResult
     static func savePNG(_ cgImage: CGImage) throws -> URL {
         try savePNG(cgImage, to: try outputDirectory())

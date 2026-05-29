@@ -1,7 +1,8 @@
 import SwiftUI
 import AppKit
 
-/// 截图历史。v1 仅内存保留，重启清空；后续做持久化 + 托盘缩略图面板。
+/// Screenshot history. v1 keeps it in memory only (cleared on restart);
+/// persistence + a thumbnail tray panel come later.
 @MainActor
 final class HistoryStore: ObservableObject {
     static let shared = HistoryStore()
@@ -15,7 +16,7 @@ final class HistoryStore: ObservableObject {
 
     @Published private(set) var pops: [Pop] = []
 
-    /// 今天爆了几粒
+    /// How many kernels popped today.
     var todayCount: Int {
         pops.filter { Calendar.current.isDateInToday($0.date) }.count
     }

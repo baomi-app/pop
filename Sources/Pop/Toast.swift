@@ -1,7 +1,8 @@
 import SwiftUI
 import AppKit
 
-/// "爆"反馈：屏幕底部中央弹出一颗苞米黄胶囊，短暂停留后淡出。
+/// The "pop" feedback: a corn-yellow capsule appears at the bottom-center of the
+/// screen, lingers briefly, then fades out.
 @MainActor
 enum Toast {
     private static var panel: NSPanel?

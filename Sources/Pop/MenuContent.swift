@@ -1,7 +1,7 @@
 import SwiftUI
 import AppKit
 
-/// 菜单栏下拉内容。
+/// Menu-bar dropdown content.
 struct MenuContent: View {
     @EnvironmentObject var history: HistoryStore
     @ObservedObject var hotkeys: HotkeyStore = .shared

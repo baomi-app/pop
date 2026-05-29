@@ -1,35 +1,80 @@
-# Pop · 苞米的第一粒 🌽
+# Pop · the first kernel of baomi 🌽
 
-macOS 截图工具。**咔，一爆即得。**
+A screenshot tool for macOS. **Snap, and it pops.**
 
-## 下载
+[中文说明](README.zh-Hans.md)
 
-到 [Releases](../../releases) 拿最新的 `Pop.zip`，解压把 `Pop.app` 拖进「应用程序」。
+## Download
 
-首次打开会被 Gatekeeper 拦（"Apple could not verify…"），任选其一处理：
+Grab the latest `Pop.zip` from [Releases](../../releases), unzip it, and drag `Pop.app` into Applications.
 
-**A. 终端命令**（最快）
+The first launch is blocked by Gatekeeper ("Apple could not verify…"). Pick one fix:
+
+**A. Terminal** (fastest)
 
 ```bash
 xattr -dr com.apple.quarantine /Applications/Pop.app
 ```
 
-**B. 系统设置救援**
+**B. System Settings rescue**
 
-1. 双击 `Pop.app` 被拦后，打开 **系统设置 → 隐私与安全性**
-2. 滚到最底，看到 "Pop 被阻止使用" + **「仍要打开」** 按钮，点它
-3. 输入密码 → 弹窗里再点「打开」
+1. Double-click `Pop.app`; after it's blocked, open **System Settings → Privacy & Security**
+2. Scroll to the bottom, find "Pop was blocked" and click **Open Anyway**
+3. Enter your password → click **Open** in the dialog
 
-首次过了之后双击就正常。
+After the first time, double-clicking works normally.
 
-## 使用
+## Usage
 
-按 `⌘⇧X` 出选择层：
+Press `⌘⇧X` to bring up the selection overlay:
 
-- 鼠标悬停 → 高亮命中窗口；**单击** = 截窗口
-- **拖拽** = 截区域
-- **↩** = 截全屏 · **⎋** = 取消
+- Hover → highlights the window under the cursor; **click** = capture window
+- **Drag** = capture region
+- **↩** = capture full screen · **⎋** = cancel
 
-截完自动复制到剪贴板。其它（自定义快捷键 / 保存到本地 / 开机启动）在菜单栏图标 → 偏好设置。
+The result is copied to the clipboard automatically. Everything else (custom hotkey,
+save-to-disk, launch at login) lives in the menu-bar icon → Preferences.
 
-首次截图系统会要求**屏幕录制**权限，授权后退出 Pop 再打开。
+On the first capture, macOS asks for **Screen Recording** permission. Grant it, then
+quit and relaunch Pop.
+
+## Development
+
+Requires macOS 14+ and Xcode 26+. The project is generated from `project.yml` by
+[XcodeGen](https://github.com/yonaskolb/XcodeGen); the `.xcodeproj` is not committed
+(regenerate it after editing `project.yml`).
+
+```bash
+# Generate the Xcode project
+xcodegen generate
+
+# Develop in Xcode
+open Pop.xcodeproj
+
+# Or: build + run from the command line
+scripts/make-app.sh Debug --run
+```
+
+## Tech stack
+
+Swift + SwiftUI + AppKit + ScreenCaptureKit. Native, with no third-party dependencies.
+
+## Layout
+
+```
+Sources/Pop/                  Source
+  PopApp.swift                  Entry point (MenuBarExtra menu-bar app)
+  Brand.swift                   Brand colors + microcopy
+  MenuContent.swift             Menu content
+  CaptureCoordinator.swift      Capture flow orchestration
+  RegionSelectionController     Selection overlay (hover/click/drag)
+  ScreenCaptureService          ScreenCaptureKit capture
+  HotkeyConfig / HotkeyManager / CarbonHotkey   Global hotkey
+  SettingsView.swift            Preferences
+  ClipboardService / ImageSaver / HistoryStore / Toast
+  Localizable.xcstrings         Localized strings (zh-Hans / en)
+App/                          Info.plist + signing entitlements
+project.yml                   XcodeGen spec (generates Pop.xcodeproj)
+scripts/make-app.sh           Build script (xcodebuild)
+design/                       Icon design files
+```

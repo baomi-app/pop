@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// 苞米 Pop —— 第一粒。
-/// 一个常驻菜单栏的 macOS 截图工具。咔，一爆即得。
+/// baomi Pop — the first kernel.
+/// A menu-bar-resident screenshot tool for macOS. Snap, and it pops.
 @main
 struct PopApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
@@ -20,7 +20,7 @@ struct PopApp: App {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // 菜单栏 App，不在 Dock 显示
+        // Menu-bar app: no Dock icon.
         NSApp.setActivationPolicy(.accessory)
         HotkeyManager.shared.start()
     }

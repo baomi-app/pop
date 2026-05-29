@@ -1,7 +1,7 @@
 import AppKit
 import Carbon.HIToolbox
 
-/// 全局快捷键配置（keyCode + 修饰键），持久化到 UserDefaults。
+/// Global hotkey config (keyCode + modifiers), persisted to UserDefaults.
 struct HotkeyConfig: Equatable {
     var keyCode: UInt32
     var modifierFlags: NSEvent.ModifierFlags
@@ -11,7 +11,7 @@ struct HotkeyConfig: Equatable {
         modifierFlags: [.command, .shift]
     )
 
-    /// 转 Carbon modifier。
+    /// Convert to Carbon modifiers.
     var carbonModifiers: UInt32 {
         var m: UInt32 = 0
         if modifierFlags.contains(.command) { m |= UInt32(cmdKey) }
@@ -21,7 +21,7 @@ struct HotkeyConfig: Equatable {
         return m
     }
 
-    /// 人类可读形式：⌘⇧X。
+    /// Human-readable form, e.g. ⌘⇧X.
     var displayString: String {
         var s = ""
         if modifierFlags.contains(.control) { s += "⌃" }
@@ -33,8 +33,8 @@ struct HotkeyConfig: Equatable {
     }
 }
 
-/// 单例存储，发布变更通知。
-/// 含：全局快捷键 / 保存到本地开关与路径 / 提示开关与文案。
+/// Singleton store that publishes changes.
+/// Holds: global hotkey / save-to-disk toggle and path / toast toggle and text.
 @MainActor
 final class HotkeyStore: ObservableObject {
     static let shared = HotkeyStore()
@@ -78,7 +78,7 @@ final class HotkeyStore: ObservableObject {
     }
 }
 
-/// keyCode → 显示名映射（覆盖常见键；不在表里的退化为 "Key N"）。
+/// keyCode → display name mapping (covers common keys; anything missing falls back to "Key N").
 enum KeyCodeNames {
     static func name(for keyCode: UInt32) -> String {
         switch Int(keyCode) {

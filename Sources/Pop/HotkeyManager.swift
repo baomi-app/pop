@@ -1,8 +1,8 @@
 import AppKit
 import Combine
 
-/// 全局快捷键管理：用 Carbon RegisterEventHotKey（无需输入监控权限）。
-/// 读 HotkeyStore.config，配置变化时自动重新注册。
+/// Global hotkey manager backed by Carbon RegisterEventHotKey (no Input Monitoring permission needed).
+/// Reads HotkeyStore.config and re-registers automatically whenever the config changes.
 @MainActor
 final class HotkeyManager {
     static let shared = HotkeyManager()

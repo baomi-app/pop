@@ -2,17 +2,17 @@ import AppKit
 import ScreenCaptureKit
 import CoreGraphics
 
-/// 截图流程编排：触发捕获 → 复制剪贴板 + 保存文件 → 记历史 → "爆"反馈。
+/// Capture flow orchestration: trigger capture → copy to clipboard + save file → record history → "pop" feedback.
 @MainActor
 final class CaptureCoordinator {
     static let shared = CaptureCoordinator()
 
-    /// 统一截图模式：拖拽=区域，单击=窗口，回车=全屏，Esc=取消。
+    /// Unified capture mode: drag = region, click = window, Return = full screen, Esc = cancel.
     func unified() {
-        // 先确认屏幕录制权限，否则浮层拉起来也没用
+        // Verify Screen Recording permission first; otherwise the overlay is useless.
         guard CGPreflightScreenCaptureAccess() else {
             Toast.show(String(localized: "需要屏幕录制权限。授权后退出 Pop 再打开。"))
-            // 触发系统弹窗（首次）；非首次则直接打开系统设置
+            // Trigger the system prompt (first time); otherwise open System Settings directly.
             if !CGRequestScreenCaptureAccess() {
                 if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
                     NSWorkspace.shared.open(url)
@@ -60,11 +60,11 @@ final class CaptureCoordinator {
             let image = try await capture()
             CaptureCoordinator.finalize(image)
         } catch {
-            NSLog("[Pop] 截图失败：\(error)")
+            NSLog("[Pop] Capture failed: \(error)")
         }
     }
 
-    /// 复制到剪贴板 +（可选）保存到本地 + 记历史 +（可选）"爆"反馈。
+    /// Copy to clipboard + (optionally) save to disk + record history + (optionally) "pop" feedback.
     static func finalize(_ cgImage: CGImage) {
         ClipboardService.copy(cgImage)
 
@@ -74,7 +74,7 @@ final class CaptureCoordinator {
             do {
                 fileURL = try ImageSaver.savePNG(cgImage, to: dir)
             } catch {
-                NSLog("[Pop] 保存到本地失败：\(error)")
+                NSLog("[Pop] Save to disk failed: \(error)")
             }
         }
 
