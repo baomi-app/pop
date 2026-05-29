@@ -55,6 +55,10 @@ scripts/make-app.sh Debug --run
 
 Swift + SwiftUI + AppKit + ScreenCaptureKit + Carbon + ServiceManagement，原生、无第三方依赖。
 
+## 作者
+
+[arjenzhou](https://github.com/arjenzhou) · 苞米（baomi.app）
+
 ## 目录
 
 ```
