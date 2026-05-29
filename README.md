@@ -32,8 +32,15 @@ Press `⌘⇧X` to bring up the selection overlay:
 - **Drag** = capture region
 - **↩** = capture full screen · **⎋** = cancel
 
-The result is copied to the clipboard automatically. Everything else (custom hotkey,
-save-to-disk, launch at login) lives in the menu-bar icon → Preferences.
+**Region capture opens in-place annotation.** The selected area freezes in place, a
+toolbar appears next to it, and you draw directly on screen:
+
+- Tools: arrow, line, rectangle, ellipse, freehand pen, text, mosaic (blur)
+- 7 colors · 3 line widths
+- **Copy** (`⌘C`) · **Save…** (`⌘S`, opens a Save panel) · **Undo** (`⌘Z`) · Clear · Cancel (`⎋`)
+
+Window and full-screen captures are copied to the clipboard directly (no editing step).
+Custom hotkey, auto-save-to-disk, and launch-at-login live in the menu-bar icon → Preferences.
 
 On the first capture, macOS asks for **Screen Recording** permission. Grant it, then
 quit and relaunch Pop.
@@ -69,6 +76,8 @@ Sources/Pop/                  Source
   CaptureCoordinator.swift      Capture flow orchestration
   RegionSelectionController     Selection overlay (hover/click/drag)
   ScreenCaptureService          ScreenCaptureKit capture
+  Annotation.swift              Annotation model (tools + palette)
+  AnnotationOverlay.swift       In-place annotation overlay + toolbar + renderer
   HotkeyConfig / HotkeyManager / CarbonHotkey   Global hotkey
   SettingsView.swift            Preferences
   ClipboardService / ImageSaver / HistoryStore / Toast
@@ -76,5 +85,4 @@ Sources/Pop/                  Source
 App/                          Info.plist + signing entitlements
 project.yml                   XcodeGen spec (generates Pop.xcodeproj)
 scripts/make-app.sh           Build script (xcodebuild)
-design/                       Icon design files
 ```

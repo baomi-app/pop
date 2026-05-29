@@ -3,7 +3,6 @@ import AppKit
 
 /// Menu-bar dropdown content.
 struct MenuContent: View {
-    @EnvironmentObject var history: HistoryStore
     @ObservedObject var hotkeys: HotkeyStore = .shared
 
     var body: some View {
@@ -12,8 +11,6 @@ struct MenuContent: View {
         }
 
         Divider()
-
-        Text(Brand.Copy.todayCount(history.todayCount))
 
         Button("偏好设置…") {
             SettingsWindowController.shared.show()

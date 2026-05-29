@@ -31,12 +31,19 @@ final class RegionSelectionController {
         Task {
             let snapshot = (try? await ScreenCaptureService.shareableContent().windows) ?? []
             let myBundle = Bundle.main.bundleIdentifier
-            let candidates = snapshot.filter { win in
+            let filtered = snapshot.filter { win in
                 win.isOnScreen
                     && win.owningApplication != nil
                     && win.owningApplication?.bundleIdentifier != myBundle
                     && win.windowLayer == 0                 // Regular app windows only (exclude Dock, wallpaper, menus)
                     && win.frame.width > 40 && win.frame.height > 40
+            }
+            // SCShareableContent.windows is NOT reliably in z-order, so a hotkey-raised
+            // (but unfocused) window could rank behind others and fail to snap. Re-sort
+            // by the true front-to-back order from the window server.
+            let zIndex = Self.zOrderIndex()
+            let candidates = filtered.sorted {
+                (zIndex[$0.windowID] ?? Int.max) < (zIndex[$1.windowID] ?? Int.max)
             }
             await MainActor.run {
                 self.present(candidates: candidates, completion: completion)
@@ -44,10 +51,34 @@ final class RegionSelectionController {
         }
     }
 
+    /// Maps each on-screen window number to its front-to-back z-order index (0 = frontmost),
+    /// taken from the window server, which — unlike SCShareableContent — is reliably ordered.
+    private static func zOrderIndex() -> [CGWindowID: Int] {
+        let opts: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
+        guard let list = CGWindowListCopyWindowInfo(opts, kCGNullWindowID) as? [[String: Any]] else {
+            return [:]
+        }
+        var map: [CGWindowID: Int] = [:]
+        for (i, info) in list.enumerated() {
+            if let n = info[kCGWindowNumber as String] as? CGWindowID {
+                map[n] = i
+            }
+        }
+        return map
+    }
+
     private func present(candidates: [SCWindow], completion: @escaping (CaptureIntent, NSScreen) -> Void) {
         let finish: (CaptureIntent, NSScreen) -> Void = { [weak self] intent, screen in
-            self?.dismiss()
-            completion(intent, screen)
+            // For region capture, keep the dimming overlay up so there's no bright
+            // flash between selecting and the annotation layer appearing; the caller
+            // calls dismiss() once the annotation overlay is in place. Other intents
+            // dismiss immediately.
+            if case .region = intent {
+                completion(intent, screen)
+            } else {
+                self?.dismiss()
+                completion(intent, screen)
+            }
         }
 
         for screen in NSScreen.screens {
@@ -85,10 +116,37 @@ final class RegionSelectionController {
         }
     }
 
-    private func dismiss() {
+    /// Tear down the selection overlay. Called automatically for cancel/window/full-screen;
+    /// for region capture the annotation controller calls this when editing ends.
+    func dismiss() {
         if let m = keyMonitor { NSEvent.removeMonitor(m); keyMonitor = nil }
         for win in windows { win.orderOut(nil) }
         windows.removeAll()
+    }
+
+    /// Keep the overlay windows visible (they keep dimming the screen behind the
+    /// annotation layer) but stop handling keys, so the annotation layer owns all input.
+    func freeze() {
+        if let m = keyMonitor { NSEvent.removeMonitor(m); keyMonitor = nil }
+    }
+
+    /// Move the committed cut-out (the bright hole in the dim overlay) to a new rect.
+    /// Called by the annotation layer's move tool so the hole tracks the screenshot block.
+    func updateCutout(_ rectLocal: NSRect, on screen: NSScreen) {
+        for win in windows where win.frame.origin == screen.frame.origin {
+            (win.contentView as? SelectionView)?.setCommittedCutout(rectLocal)
+        }
+    }
+
+    /// Temporarily hide the overlay windows (e.g. while a Save panel is up) without
+    /// tearing them down.
+    func hide() {
+        for win in windows { win.orderOut(nil) }
+    }
+
+    /// Re-show the overlay windows after `hide()`.
+    func unhide() {
+        for win in windows { win.orderFrontRegardless() }
     }
 
     private func screenUnderCursor() -> NSScreen {
@@ -160,6 +218,7 @@ final class SelectionView: NSView {
     private var hoveredWindow: SCWindow?
     private var hoveredLocalRect: NSRect?
     private var trackingArea: NSTrackingArea?
+    private var committed = false   // frozen after an intent is sent; stops repaint flicker
 
     init(frame: NSRect, candidates: [SCWindow]) {
         self.candidates = candidates
@@ -199,6 +258,7 @@ final class SelectionView: NSView {
     }
 
     override func mouseDown(with event: NSEvent) {
+        guard !committed else { return }
         startPoint = convert(event.locationInWindow, from: nil)
         currentRect = NSRect(origin: startPoint!, size: .zero)
         didDrag = false
@@ -206,8 +266,18 @@ final class SelectionView: NSView {
     }
 
     override func mouseDragged(with event: NSEvent) {
-        guard let start = startPoint else { return }
-        let p = convert(event.locationInWindow, from: nil)
+        guard !committed, let start = startPoint else { return }
+        // Clamp the cursor to this screen's bounds. During a drag, events keep coming to
+        // the window where the drag began even after the pointer crosses onto another
+        // screen; without clamping, the selection would extend past this display and the
+        // crop (computed against this one display) would be out-of-bounds → the capture
+        // came out distorted and missing the other screen's pixels. Cross-screen capture
+        // is intentionally not supported; the selection stays within the start screen.
+        let raw = convert(event.locationInWindow, from: nil)
+        let p = NSPoint(
+            x: min(max(raw.x, bounds.minX), bounds.maxX),
+            y: min(max(raw.y, bounds.minY), bounds.maxY)
+        )
         let r = NSRect(
             x: min(start.x, p.x),
             y: min(start.y, p.y),
@@ -224,20 +294,33 @@ final class SelectionView: NSView {
     }
 
     override func mouseUp(with event: NSEvent) {
-        defer {
-            startPoint = nil
-            currentRect = nil
-            didDrag = false
-            needsDisplay = true
-        }
+        guard !committed else { return }
         if didDrag, let rect = currentRect, rect.width > 4, rect.height > 4 {
+            committed = true
+            // Redraw NOW into the committed state (cut-out kept bright, but our own
+            // border dropped) and flush synchronously, so the live-drag border is gone
+            // before the annotation layer draws its single border on top. Otherwise the
+            // two borders briefly overlap at slightly different widths and the edge
+            // appears to jitter.
+            needsDisplay = true
+            displayIfNeeded()
             onLocalIntent?(.region(rect))
-        } else {
-            // Click: capture the currently hovered window.
-            if let win = hoveredWindow {
-                onLocalIntent?(.window(win))
-            }
+            return
         }
+        // Capture window: re-hit-test at the actual click point rather than relying on
+        // the cached hover (which only updates on mouseMoved and can be stale/nil,
+        // causing the "sometimes snaps, sometimes doesn't" behavior).
+        let clickPoint = convert(event.locationInWindow, from: nil)
+        if let (win, _) = topmostWindow(atLocal: clickPoint) {
+            committed = true
+            onLocalIntent?(.window(win))
+            return
+        }
+        // Nothing selected: reset for another attempt.
+        startPoint = nil
+        currentRect = nil
+        didDrag = false
+        needsDisplay = true
     }
 
     func updateHoverFromGlobalMouse() {
@@ -245,6 +328,12 @@ final class SelectionView: NSView {
         let global = NSEvent.mouseLocation
         let local = convert(win.convertPoint(fromScreen: global), from: nil)
         updateHover(at: local)
+    }
+
+    /// Reposition the committed cut-out (used when the move tool pans the capture).
+    func setCommittedCutout(_ rect: NSRect) {
+        currentRect = rect
+        needsDisplay = true
     }
 
     private func updateHover(at localPoint: NSPoint) {
@@ -270,6 +359,10 @@ final class SelectionView: NSView {
         let globalPoint = win.convertPoint(toScreen: localPoint)
         let primary = Self.primaryScreen()
         let cgPoint = CGPoint(x: globalPoint.x, y: primary.frame.maxY - globalPoint.y)
+        // `candidates` was sorted into true front-to-back z-order in begin(), so the first
+        // window that contains the point is the frontmost one actually visible there. This
+        // correctly ignores windows occluded at that point (a window in front contains it
+        // too and comes first), instead of snapping to some hidden window behind.
         guard let hit = candidates.first(where: { $0.frame.contains(cgPoint) }) else { return nil }
 
         // SCWindow.frame (CG, top-left) → global NSScreen (bottom-left) → window local → view local
@@ -294,6 +387,18 @@ final class SelectionView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         NSColor.black.withAlphaComponent(0.28).setFill()
         bounds.fill()
+
+        // After commit, KEEP the cut-out open (selected region stays bright) but draw no
+        // border/label/hint. The annotation layer is placed on top and paints the
+        // screenshot + the single border into the same region. Because the region stays
+        // bright throughout, there's no dark frame and thus no jitter during hand-off.
+        if committed {
+            if let rect = currentRect {
+                NSColor.clear.setFill()
+                rect.fill(using: .copy)
+            }
+            return
+        }
 
         drawHint()
 

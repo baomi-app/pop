@@ -23,11 +23,11 @@
     <key>NSHumanReadableCopyright</key>
     <string>© 2026 arjenzhou · baomi.app</string>
     <key>CFBundleDevelopmentRegion</key>
-    <string>zh-Hans</string>
+    <string>en</string>
     <key>CFBundleLocalizations</key>
     <array>
-        <string>zh-Hans</string>
         <string>en</string>
+        <string>zh-Hans</string>
     </array>
 </dict>
 </plist>

@@ -1,5 +1,5 @@
 import Carbon.HIToolbox
-import AppKit
+import Foundation
 
 /// A lightweight Carbon global-hotkey wrapper. Requires no Input Monitoring permission.
 /// Holds at most one hotkey at a time; calling register again replaces the old one.

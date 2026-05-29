@@ -14,6 +14,5 @@ enum Brand {
     /// Microcopy system: the "corn = a cob, tool = a kernel" metaphor runs through the UI.
     enum Copy {
         static var saved: String { String(localized: "爆好了 🌽") }
-        static func todayCount(_ n: Int) -> String { String(localized: "今天爆了 \(n) 粒") }
     }
 }

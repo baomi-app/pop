@@ -5,14 +5,12 @@ import SwiftUI
 @main
 struct PopApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @StateObject private var history = HistoryStore.shared
 
     var body: some Scene {
         MenuBarExtra {
             MenuContent()
-                .environmentObject(history)
         } label: {
-            Image(systemName: "dot.viewfinder")
+            Image("MenuBarIconImage")
         }
         .menuBarExtraStyle(.menu)
     }

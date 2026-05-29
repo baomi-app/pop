@@ -1,499 +1,703 @@
 {
-  "sourceLanguage" : "zh-Hans",
-  "strings" : {
-    "Pop 偏好设置" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pop Settings"
+  "sourceLanguage": "zh-Hans",
+  "strings": {
+    "Pop 偏好设置": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pop Settings"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pop 偏好设置"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pop 偏好设置"
           }
         }
       }
     },
-    "保存" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Save"
+    "保存": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "保存"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存"
           }
         }
       }
     },
-    "保存到本地" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Save to disk"
+    "保存…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save…"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "保存到本地"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存…"
           }
         }
       }
     },
-    "爆好了 🌽" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Popped 🌽"
+    "保存到本地": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save to disk"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "爆好了 🌽"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存到本地"
           }
         }
       }
     },
-    "悬停=窗口 · 拖拽=区域 · ↩=全屏 · ⎋=取消" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hover = Window · Drag = Region · ↩ = Full screen · ⎋ = Cancel"
+    "偏好设置…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Settings…"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "悬停=窗口 · 拖拽=区域 · ↩=全屏 · ⎋=取消"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "偏好设置…"
           }
         }
       }
     },
-    "按下组合键…（⎋ 取消）" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Press shortcut keys… (⎋ to cancel)"
+    "切换失败，请到系统设置 › 通用 › 登录项中手动启用。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't change the setting. Enable it manually in System Settings › General › Login Items."
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "按下组合键…（⎋ 取消）"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "切换失败，请到系统设置 › 通用 › 登录项中手动启用。"
           }
         }
       }
     },
-    "截一粒（%@）" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Capture (%@)"
+    "取消": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "截一粒（%@）"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取消"
           }
         }
       }
     },
-    "截图" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Capture"
+    "圆圈": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ellipse"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "截图"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "圆圈"
           }
         }
       }
     },
-    "截图完成后显示" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show after capture"
+    "复制": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "截图完成后显示"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制"
           }
         }
       }
     },
-    "仅截窗口" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Window only"
+    "完成提示": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Capture notice"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "仅截窗口"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完成提示"
           }
         }
       }
     },
-    "仅截全屏" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Full screen only"
+    "开机启动": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Launch at login"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "仅截全屏"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "开机启动"
           }
         }
       }
     },
-    "今天爆了 %lld 粒" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld pops today"
+    "快捷键": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shortcut"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "今天爆了 %lld 粒"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "快捷键"
           }
         }
       }
     },
-    "偏好设置…" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Settings…"
+    "悬停=窗口 · 拖拽=区域 · ↩=全屏 · ⎋=取消": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hover = Window · Drag = Region · ↩ = Full screen · ⎋ = Cancel"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "偏好设置…"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "悬停=窗口 · 拖拽=区域 · ↩=全屏 · ⎋=取消"
           }
         }
       }
     },
-    "退出 Pop" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Quit Pop"
+    "截一粒（%@）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Capture (%@)"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "退出 Pop"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "截一粒（%@）"
           }
         }
       }
     },
-    "快捷键" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Shortcut"
+    "截图": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Capture"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "快捷键"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "截图"
           }
         }
       }
     },
-    "默认" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Default"
+    "截图完成后显示": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show after capture"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "默认"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "截图完成后显示"
           }
         }
       }
     },
-    "默认不保存。开启后每次截图都会按所选目录保存为 PNG。" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Off by default. When on, each capture is saved as PNG to the chosen folder."
+    "截图完成后短暂显示「%@」。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Briefly shows “%@” after a capture."
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "默认不保存。开启后每次截图都会按所选目录保存为 PNG。"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "截图完成后短暂显示「%@」。"
           }
         }
       }
     },
-    "点击编辑框，按下你想要的组合键。" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Click the field and press your desired shortcut."
+    "按下组合键…（⎋ 取消）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Press shortcut keys… (⎋ to cancel)"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "点击编辑框，按下你想要的组合键。"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "按下组合键…（⎋ 取消）"
           }
         }
       }
     },
-    "目录" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Folder"
+    "撤销": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Undo"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "目录"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "撤销"
           }
         }
       }
     },
-    "未选择" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Not selected"
+    "文字": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Text"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "未选择"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文字"
           }
         }
       }
     },
-    "完成提示" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Capture notice"
+    "文案": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Text"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "完成提示"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文案"
           }
         }
       }
     },
-    "文案" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Text"
+    "方框": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rectangle"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "文案"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "方框"
           }
         }
       }
     },
-    "选择" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Choose"
+    "未选择": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not selected"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "选择"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未选择"
           }
         }
       }
     },
-    "选择…" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Choose…"
+    "清空": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "选择…"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清空"
           }
         }
       }
     },
-    "登录项" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Login Items"
+    "点击编辑框，按下你想要的组合键。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click the field and press your desired shortcut."
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "登录项"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "点击编辑框，按下你想要的组合键。"
           }
         }
       }
     },
-    "开机启动" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Launch at login"
+    "爆好了 🌽": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Popped 🌽"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "开机启动"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "爆好了 🌽"
           }
         }
       }
     },
-    "登录时自动在后台启动 Pop。" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pop launches automatically in the background at login."
+    "画笔": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pen"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "登录时自动在后台启动 Pop。"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "画笔"
           }
         }
       }
     },
-    "需要屏幕录制权限。授权后退出 Pop 再打开。" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Screen Recording permission required. Authorize it, then quit and reopen Pop."
+    "登录时自动在后台启动 Pop。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pop launches automatically in the background at login."
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "需要屏幕录制权限。授权后退出 Pop 再打开。"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录时自动在后台启动 Pop。"
           }
         }
       }
     },
-    "切换失败，请到系统设置 › 通用 › 登录项中手动启用。" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Couldn't change the setting. Enable it manually in System Settings › General › Login Items."
+    "登录项": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Login Items"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "切换失败，请到系统设置 › 通用 › 登录项中手动启用。"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录项"
+          }
+        }
+      }
+    },
+    "目录": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Folder"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "目录"
+          }
+        }
+      }
+    },
+    "直线": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Line"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "直线"
+          }
+        }
+      }
+    },
+    "移动": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移动"
+          }
+        }
+      }
+    },
+    "箭头": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arrow"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "箭头"
+          }
+        }
+      }
+    },
+    "输入文字": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter text"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "输入文字"
+          }
+        }
+      }
+    },
+    "退出 Pop": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quit Pop"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "退出 Pop"
+          }
+        }
+      }
+    },
+    "选择": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择"
+          }
+        }
+      }
+    },
+    "选择…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择…"
+          }
+        }
+      }
+    },
+    "需要屏幕录制权限。授权后退出 Pop 再打开。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Screen Recording permission required. Authorize it, then quit and reopen Pop."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要屏幕录制权限。授权后退出 Pop 再打开。"
+          }
+        }
+      }
+    },
+    "马赛克": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mosaic"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "马赛克"
+          }
+        }
+      }
+    },
+    "默认": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "默认"
+          }
+        }
+      }
+    },
+    "默认不保存。开启后每次截图都会按所选目录保存为 PNG。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Off by default. When on, each capture is saved as PNG to the chosen folder."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "默认不保存。开启后每次截图都会按所选目录保存为 PNG。"
           }
         }
       }
     }
   },
-  "version" : "1.0"
+  "version": "1.0"
 }

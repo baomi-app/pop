@@ -1,4 +1,4 @@
-import AppKit
+import Foundation
 import Combine
 
 /// Global hotkey manager backed by Carbon RegisterEventHotKey (no Input Monitoring permission needed).

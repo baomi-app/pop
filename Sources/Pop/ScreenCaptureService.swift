@@ -4,7 +4,6 @@ import AppKit
 
 enum CaptureError: Error {
     case noDisplay
-    case noWindow
     case encodeFailed
 }
 
@@ -29,8 +28,12 @@ enum ScreenCaptureService {
     // MARK: - Region
 
     /// cropRect: a point rect in the display's coordinate space, origin at top-left.
-    static func captureRegion(_ cropRect: CGRect, on display: SCDisplay) async throws -> CGImage {
-        try await capture(display: display, cropRect: cropRect, scale: scale(for: display))
+    /// `excluding`: windows to leave out of the capture (e.g. our own dimming overlay,
+    /// so the selection layer can stay up during capture without a flash).
+    static func captureRegion(_ cropRect: CGRect, on display: SCDisplay,
+                              excluding: [SCWindow] = []) async throws -> CGImage {
+        try await capture(display: display, cropRect: cropRect,
+                          scale: scale(for: display), excluding: excluding)
     }
 
     // MARK: - Window
@@ -49,8 +52,9 @@ enum ScreenCaptureService {
 
     // MARK: - Core
 
-    private static func capture(display: SCDisplay, cropRect: CGRect?, scale: CGFloat) async throws -> CGImage {
-        let filter = SCContentFilter(display: display, excludingWindows: [])
+    private static func capture(display: SCDisplay, cropRect: CGRect?, scale: CGFloat,
+                                excluding: [SCWindow] = []) async throws -> CGImage {
+        let filter = SCContentFilter(display: display, excludingWindows: excluding)
         let config = SCStreamConfiguration()
         config.width = Int(CGFloat(display.width) * scale)
         config.height = Int(CGFloat(display.height) * scale)

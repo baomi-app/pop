@@ -2,7 +2,9 @@ import AppKit
 import ScreenCaptureKit
 import CoreGraphics
 
-/// Capture flow orchestration: trigger capture → copy to clipboard + save file → record history → "pop" feedback.
+/// Capture flow orchestration.
+/// - Region: capture → in-place annotation overlay → user copies/saves there.
+/// - Window / full screen: capture → copy to clipboard + save + record + "pop" feedback.
 @MainActor
 final class CaptureCoordinator {
     static let shared = CaptureCoordinator()
@@ -26,27 +28,50 @@ final class CaptureCoordinator {
             switch intent {
             case .cancel:
                 return
+
             case .fullScreen:
+                // Full screen: capture and finalize directly (no in-place editing for v1).
                 Task {
-                    await self.run(scale: screen.backingScaleFactor) {
+                    await self.captureThenFinalize {
                         try await ScreenCaptureService.captureFullScreen(of: screen)
                     }
                 }
+
             case .window(let win):
+                // Window: capture and finalize directly (no in-place editing for v1).
                 Task {
-                    await self.run(scale: screen.backingScaleFactor) {
+                    await self.captureThenFinalize {
                         try await ScreenCaptureService.capture(win)
                     }
                 }
+
             case .region(let screenRect):
+                // Region: capture, then open the in-place annotation overlay.
+                // The selection overlay stays up (dimmed) through capture and is
+                // dismissed only after the annotation overlay is shown, so there's no
+                // bright flash. Our own overlay windows are excluded from the capture
+                // so the dimming/selection chrome never ends up in the screenshot.
                 Task {
-                    await self.run(scale: screen.backingScaleFactor) {
+                    do {
                         let content = try await ScreenCaptureService.shareableContent()
                         let display = content.displays.first { $0.displayID == screen.displayID }
                             ?? content.displays.first
                         guard let display else { throw CaptureError.noDisplay }
+                        let myBundle = Bundle.main.bundleIdentifier
+                        let ownWindows = content.windows.filter {
+                            $0.owningApplication?.bundleIdentifier == myBundle
+                        }
                         let crop = ScreenCaptureService.topLeftRect(screenRect, in: screen)
-                        return try await ScreenCaptureService.captureRegion(crop, on: display)
+                        let image = try await ScreenCaptureService.captureRegion(
+                            crop, on: display, excluding: ownWindows)
+                        // present() tears down the selection overlay itself, but only
+                        // after the annotation overlay has drawn a frame — preventing a
+                        // one-frame desktop flash.
+                        AnnotationOverlayController.shared.present(
+                            base: image, rectGlobal: screenRect, screen: screen)
+                    } catch {
+                        NSLog("[Pop] Capture failed: \(error)")
+                        RegionSelectionController.shared.dismiss()
                     }
                 }
             }
@@ -55,7 +80,7 @@ final class CaptureCoordinator {
 
     // MARK: -
 
-    private func run(scale: CGFloat, _ capture: @escaping () async throws -> CGImage) async {
+    private func captureThenFinalize(_ capture: @escaping () async throws -> CGImage) async {
         do {
             let image = try await capture()
             CaptureCoordinator.finalize(image)
@@ -64,28 +89,21 @@ final class CaptureCoordinator {
         }
     }
 
-    /// Copy to clipboard + (optionally) save to disk + record history + (optionally) "pop" feedback.
+    /// Copy to clipboard + (optionally) save to disk + (optionally) "pop" feedback.
     static func finalize(_ cgImage: CGImage) {
         ClipboardService.copy(cgImage)
 
         let store = HotkeyStore.shared
-        var fileURL: URL?
         if store.saveEnabled, let dir = store.savePath {
             do {
-                fileURL = try ImageSaver.savePNG(cgImage, to: dir)
+                try ImageSaver.savePNG(cgImage, to: dir)
             } catch {
                 NSLog("[Pop] Save to disk failed: \(error)")
             }
         }
 
-        let nsImage = NSImage(
-            cgImage: cgImage,
-            size: NSSize(width: cgImage.width, height: cgImage.height)
-        )
-        HistoryStore.shared.recordPop(image: nsImage, fileURL: fileURL)
-
-        if store.toastEnabled, !store.toastText.isEmpty {
-            Toast.show(store.toastText)
+        if store.toastEnabled {
+            Toast.show(Brand.Copy.saved)
         }
     }
 }

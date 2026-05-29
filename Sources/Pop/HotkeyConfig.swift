@@ -34,7 +34,9 @@ struct HotkeyConfig: Equatable {
 }
 
 /// Singleton store that publishes changes.
-/// Holds: global hotkey / save-to-disk toggle and path / toast toggle and text.
+/// Holds: global hotkey / save-to-disk toggle and path / toast toggle.
+/// The toast TEXT is not user-editable — it comes from Brand.Copy.saved and follows the
+/// app locale.
 @MainActor
 final class HotkeyStore: ObservableObject {
     static let shared = HotkeyStore()
@@ -44,13 +46,11 @@ final class HotkeyStore: ObservableObject {
     private let saveEnabledKey = "Pop.Save.enabled"
     private let savePathKey = "Pop.Save.path"
     private let toastEnabledKey = "Pop.Toast.enabled"
-    private let toastTextKey = "Pop.Toast.text"
 
     @Published var config: HotkeyConfig { didSet { saveHotkey() } }
     @Published var saveEnabled: Bool { didSet { UserDefaults.standard.set(saveEnabled, forKey: saveEnabledKey) } }
     @Published var savePath: URL? { didSet { UserDefaults.standard.set(savePath?.path, forKey: savePathKey) } }
     @Published var toastEnabled: Bool { didSet { UserDefaults.standard.set(toastEnabled, forKey: toastEnabledKey) } }
-    @Published var toastText: String { didSet { UserDefaults.standard.set(toastText, forKey: toastTextKey) } }
 
     private init() {
         let d = UserDefaults.standard
@@ -68,7 +68,6 @@ final class HotkeyStore: ObservableObject {
             self.savePath = nil
         }
         self.toastEnabled = d.object(forKey: toastEnabledKey) as? Bool ?? true
-        self.toastText = (d.string(forKey: toastTextKey)).flatMap { $0.isEmpty ? nil : $0 } ?? Brand.Copy.saved
     }
 
     private func saveHotkey() {

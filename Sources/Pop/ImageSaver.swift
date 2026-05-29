@@ -2,12 +2,6 @@ import AppKit
 import CoreGraphics
 
 enum ImageSaver {
-    /// Save to ~/Pictures/Pop/Pop-<timestamp>.png
-    @discardableResult
-    static func savePNG(_ cgImage: CGImage) throws -> URL {
-        try savePNG(cgImage, to: try outputDirectory())
-    }
-
     @discardableResult
     static func savePNG(_ cgImage: CGImage, to dir: URL) throws -> URL {
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -18,14 +12,6 @@ enum ImageSaver {
         }
         try data.write(to: url)
         return url
-    }
-
-    static func outputDirectory() throws -> URL {
-        let pictures = FileManager.default
-            .urls(for: .picturesDirectory, in: .userDomainMask).first!
-        let dir = pictures.appendingPathComponent("Pop", isDirectory: true)
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir
     }
 
     private static func timestamp() -> String {

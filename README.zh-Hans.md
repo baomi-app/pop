@@ -32,7 +32,13 @@ xattr -dr com.apple.quarantine /Applications/Pop.app
 - **拖拽** = 截区域
 - **↩** = 截全屏 · **⎋** = 取消
 
-截完自动复制到剪贴板。其它（自定义快捷键 / 保存到本地 / 开机启动）在菜单栏图标 → 偏好设置。
+**区域截图进入原地标注。** 选中的区域当场冻结在原位，工具条贴着选区出现，直接在屏幕上画：
+
+- 工具：箭头、直线、方框、圆圈、自由画笔、文字、马赛克
+- 7 种颜色 · 3 档线宽
+- **复制**（`⌘C`）· **保存…**（`⌘S`，弹系统保存面板）· **撤销**（`⌘Z`）· 清空 · 取消（`⎋`）
+
+窗口截图和全屏截图直接复制到剪贴板（不进编辑）。自定义快捷键、自动保存到本地、开机启动都在菜单栏图标 → 偏好设置。
 
 首次截图系统会要求**屏幕录制**权限，授权后退出 Pop 再打开。
 
@@ -66,6 +72,8 @@ Sources/Pop/                  源码
   CaptureCoordinator.swift      截图流程编排
   RegionSelectionController     选择层（悬停/单击/拖拽）
   ScreenCaptureService          ScreenCaptureKit 截图
+  Annotation.swift              标注模型（工具 + 调色板）
+  AnnotationOverlay.swift       原地标注覆盖层 + 工具条 + 渲染
   HotkeyConfig / HotkeyManager / CarbonHotkey   全局快捷键
   SettingsView.swift            偏好设置
   ClipboardService / ImageSaver / HistoryStore / Toast
@@ -73,5 +81,4 @@ Sources/Pop/                  源码
 App/                          Info.plist + 签名 entitlements
 project.yml                   XcodeGen 工程规格（生成 Pop.xcodeproj）
 scripts/make-app.sh           构建脚本（xcodebuild）
-design/                       图标设计稿
 ```

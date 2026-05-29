@@ -34,7 +34,7 @@ struct SettingsView: View {
                 Toggle("保存到本地", isOn: $store.saveEnabled)
                 LabeledContent("目录") {
                     HStack(spacing: 8) {
-                        Text(store.savePath?.path ?? "未选择")
+                        Text(store.savePath?.path ?? String(localized: "未选择"))
                             .lineLimit(1)
                             .truncationMode(.middle)
                             .foregroundStyle(store.savePath == nil ? .secondary : .primary)
@@ -55,15 +55,12 @@ struct SettingsView: View {
 
             Section {
                 Toggle("截图完成后显示", isOn: $store.toastEnabled)
-                LabeledContent("文案") {
-                    TextField("", text: $store.toastText, prompt: Text("爆好了 🌽"))
-                        .multilineTextAlignment(.trailing)
-                        .textFieldStyle(.plain)
-                        .frame(maxWidth: 200)
-                }
-                .disabled(!store.toastEnabled)
             } header: {
                 Text("完成提示")
+            } footer: {
+                Text("截图完成后短暂显示「\(Brand.Copy.saved)」。")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
             }
 
             Section {
@@ -85,8 +82,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 480, height: 540)
-        .scrollDisabled(true)
+        .frame(width: 480, height: 480)
         .onAppear {
             launchAtLogin = (SMAppService.mainApp.status == .enabled)
         }
@@ -218,7 +214,7 @@ final class SettingsWindowController {
             return
         }
         let win = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 480, height: 540),
+            contentRect: NSRect(x: 0, y: 0, width: 480, height: 480),
             styleMask: [.titled, .closable, .fullSizeContentView],
             backing: .buffered,
             defer: false
