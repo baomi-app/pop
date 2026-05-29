@@ -35,9 +35,14 @@ jobs:
             -configuration Release \
             -derivedDataPath .build \
             CODE_SIGN_IDENTITY=- \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_STYLE=Manual \
             build
+
+      - name: Verify code signature (identifier must be app.baomi.pop)
+        run: |
+          IDENTIFIER=$(codesign -dvv .build/Build/Products/Release/Pop.app 2>&1 | awk -F= '/^Identifier=/{print $2}')
+          echo "Identifier: $IDENTIFIER"
+          test "$IDENTIFIER" = "app.baomi.pop"
 
       - name: Locate built app
         id: app
