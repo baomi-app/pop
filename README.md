@@ -6,8 +6,21 @@ macOS 截图工具。**咔，一爆即得。**
 
 到 [Releases](../../releases) 拿最新的 `Pop.zip`，解压把 `Pop.app` 拖进「应用程序」。
 
-> 首次打开被 Gatekeeper 拦：右键 `Pop.app` → 「打开」 → 弹窗里再点「打开」。或终端执行：
-> `xattr -dr com.apple.quarantine /Applications/Pop.app`
+首次打开会被 Gatekeeper 拦（"Apple could not verify…"），任选其一处理：
+
+**A. 终端命令**（最快）
+
+```bash
+xattr -dr com.apple.quarantine /Applications/Pop.app
+```
+
+**B. 系统设置救援**
+
+1. 双击 `Pop.app` 被拦后，打开 **系统设置 → 隐私与安全性**
+2. 滚到最底，看到 "Pop 被阻止使用" + **「仍要打开」** 按钮，点它
+3. 输入密码 → 弹窗里再点「打开」
+
+首次过了之后双击就正常。
 
 ## 使用
 
