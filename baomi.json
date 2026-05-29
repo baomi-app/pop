@@ -9,26 +9,28 @@
     "zh": "macOS 截图工具。咔，一爆即得。"
   },
   "description": {
-    "en": "A lightweight, fast screenshot utility for macOS. Hit a hotkey, pick a window or region, and the shot is on your clipboard before you blink.",
-    "zh": "轻量、快速的 macOS 截图工具。按下快捷键，框选窗口或区域，截图瞬间就到了你的剪贴板里。"
+    "en": "A lightweight, fast screenshot utility for macOS. Hit a hotkey, pick a window or region, then annotate it right on screen — arrows, shapes, text, mosaic — and copy or save. The first kernel of the baomi family.",
+    "zh": "轻量、快速的 macOS 截图工具。按下快捷键，框选窗口或区域，然后直接在屏幕上标注——箭头、图形、文字、马赛克——再复制或保存。苞米家族的第一粒。"
   },
   "features": {
     "en": [
-      "Global hotkey (⌘⇧X) to summon the capture layer",
-      "Window, region, and full-screen modes",
-      "Auto-copies the result straight to your clipboard",
-      "Hover highlighting to lock onto the right window",
-      "Custom hotkeys, local saving, and launch-at-login"
+      "Global hotkey to summon the capture layer; window, region, and full-screen modes",
+      "Annotate in place: arrow, line, rectangle, ellipse, pen, text, and mosaic",
+      "Drag to reposition the capture before you mark it up",
+      "Return to copy to the clipboard, or save as PNG via a panel",
+      "Hover highlighting locks onto the right window, even hotkey-raised ones",
+      "Custom hotkey, local auto-save, and launch-at-login"
     ],
     "zh": [
-      "全局快捷键（⌘⇧X）唤起截图层",
-      "窗口、区域、全屏三种模式",
-      "自动把结果复制到剪贴板",
-      "悬停高亮，精准锁定目标窗口",
-      "自定义快捷键、本地保存、开机自启"
+      "全局快捷键唤起截图层；窗口、区域、全屏三种模式",
+      "原地标注：箭头、直线、方框、圆圈、画笔、文字、马赛克",
+      "标注前可拖动截图到任意位置",
+      "回车复制到剪贴板，或弹面板保存为 PNG",
+      "悬停高亮精准锁定目标窗口（含快捷键唤起的窗口）",
+      "自定义快捷键、本地自动保存、开机自启"
     ]
   },
-  "tech": ["Swift", "AppKit"],
+  "tech": ["Swift", "SwiftUI", "AppKit", "ScreenCaptureKit"],
   "links": [
     {
       "label": { "en": "Download", "zh": "下载" },
