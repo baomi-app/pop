@@ -43,18 +43,24 @@ final class RegionSelectionController {
             return
         }
 
-        // Grab each display synchronously with CGDisplayCreateImage (one capture → one
-        // flash; it matches the display's tone-mapping, so no gray), then show the overlay
-        // already frozen. NOTE: capturing the screen flashes the XDR display once — an
-        // unsolved hardware/OS behavior (see header). The grab runs before we take focus, so
-        // transient UI (Spotlight) stays in the shot.
-        var shots: [CGDirectDisplayID: CGImage] = [:]
-        for screen in NSScreen.screens {
-            if let img = CGDisplayCreateImage(screen.displayID) {
-                shots[screen.displayID] = img
+        // Show the selection overlay instantly with snapshot: nil, so the screen is dimmed
+        // immediately without any flash.
+        present(shots: [:], completion: completion)
+
+        // Start the continuous screen stream capture asynchronously
+        Task { [weak self] in
+            do {
+                try await ScreenStreamCapturer.shared.start(on: NSScreen.screens) { [weak self] displayID, cgImage in
+                    guard let self else { return }
+                    // Update the selection window for this display with the captured image
+                    for win in self.windows where win.displayID == displayID {
+                        win.updateSnapshot(cgImage)
+                    }
+                }
+            } catch {
+                NSLog("[Pop] Failed to start screen stream capture: \(error)")
             }
         }
-        present(shots: shots, completion: completion)
 
         // The window list (hover highlight + click-to-capture-window) needs
         // SCShareableContent, which is async-only; load it in the background and inject it.
@@ -183,6 +189,9 @@ final class RegionSelectionController {
         if let m = keyMonitor { NSEvent.removeMonitor(m); keyMonitor = nil }
         for win in windows { win.orderOut(nil) }
         windows.removeAll()
+
+        // Stop stream capture after dismissal (deferred by 800ms to hide stop-capture visual drop / indicator fadeout)
+        ScreenStreamCapturer.shared.stopDeferred()
     }
 
     /// Keep the overlay windows visible (they keep dimming the screen behind the
@@ -221,6 +230,10 @@ final class RegionSelectionController {
 final class SelectionWindow: NSPanel {
     var onIntent: ((CaptureIntent) -> Void)?
     let displayID: CGDirectDisplayID
+
+    func updateSnapshot(_ newSnapshot: CGImage) {
+        (contentView as? SelectionView)?.updateSnapshot(newSnapshot)
+    }
 
     init(screen: NSScreen, candidates: [SCWindow], snapshot: CGImage?) {
         self.displayID = screen.displayID
@@ -278,8 +291,8 @@ final class SelectionView: NSView {
     fileprivate var onLocalIntent: ((LocalIntent) -> Void)?
 
     private var candidates: [SCWindow]
-    private let snapshot: CGImage?      // frozen full-screen image (native px), for cropping
-    private let nsSnapshot: NSImage?    // same, for drawing
+    private var snapshot: CGImage?      // frozen full-screen image (native px), for cropping
+    private var nsSnapshot: NSImage?    // same, for drawing
 
     private var startPoint: NSPoint?
     private var currentRect: NSRect?
@@ -288,6 +301,12 @@ final class SelectionView: NSView {
     private var hoveredLocalRect: NSRect?
     private var trackingArea: NSTrackingArea?
     private var committed = false   // frozen after an intent is sent; stops repaint flicker
+
+    func updateSnapshot(_ newSnapshot: CGImage) {
+        self.snapshot = newSnapshot
+        self.nsSnapshot = NSImage(cgImage: newSnapshot, size: bounds.size)
+        needsDisplay = true
+    }
 
     init(frame: NSRect, candidates: [SCWindow], snapshot: CGImage?) {
         self.candidates = candidates
