@@ -3,6 +3,12 @@ import ScreenCaptureKit
 import CoreGraphics
 import Carbon.HIToolbox
 
+struct SnapWindow {
+    let windowID: CGWindowID
+    let frame: CGRect
+    let windowLayer: Int
+}
+
 /// Unified capture selection overlay (covers every screen).
 ///
 /// The screen is FROZEN: on the hotkey we grab each display with CGDisplayCreateImage and
@@ -261,6 +267,7 @@ final class SelectionWindow: NSPanel {
         setFrame(screen.frame, display: true)
 
         let view = SelectionView(frame: NSRect(origin: .zero, size: screen.frame.size),
+                                 screen: screen,
                                  candidates: candidates,
                                  snapshot: snapshot)
         view.onLocalIntent = { [weak self] localIntent in
@@ -292,14 +299,15 @@ private enum LocalIntent {
 final class SelectionView: NSView {
     fileprivate var onLocalIntent: ((LocalIntent) -> Void)?
 
-    private var candidates: [SCWindow]
+    private let screen: NSScreen
+    private var candidates: [SnapWindow] = []
     private var snapshot: CGImage?      // frozen full-screen image (native px), for cropping
     private var nsSnapshot: NSImage?    // same, for drawing
 
     private var startPoint: NSPoint?
     private var currentRect: NSRect?
     private var didDrag = false
-    private var hoveredWindow: SCWindow?
+    private var hoveredWindow: SnapWindow?
     private var hoveredLocalRect: NSRect?
     private var trackingArea: NSTrackingArea?
     private var committed = false   // frozen after an intent is sent; stops repaint flicker
@@ -310,11 +318,12 @@ final class SelectionView: NSView {
         needsDisplay = true
     }
 
-    init(frame: NSRect, candidates: [SCWindow], snapshot: CGImage?) {
-        self.candidates = candidates
+    init(frame: NSRect, screen: NSScreen, candidates: [SCWindow], snapshot: CGImage?) {
+        self.screen = screen
         self.snapshot = snapshot
         self.nsSnapshot = snapshot.map { NSImage(cgImage: $0, size: frame.size) }
         super.init(frame: frame)
+        setCandidates(candidates)
     }
 
     required init?(coder: NSCoder) { fatalError() }
@@ -446,9 +455,65 @@ final class SelectionView: NSView {
 
     /// Receive the window list once it has loaded (the freeze is shown before it's ready).
     func setCandidates(_ c: [SCWindow]) {
-        candidates = c
+        candidates = c.compactMap { win in
+            let bundleId = win.owningApplication?.bundleIdentifier ?? ""
+            var frame = win.frame
+            
+            // If it is the Dock, we replace its full-screen frame with its actual physical visible frame!
+            if bundleId == "com.apple.dock", win.windowLayer == 20 {
+                guard let df = Self.dockFrame(on: screen) else {
+                    return nil // Exclude if Dock is hidden/autohide is enabled
+                }
+                frame = df
+            }
+            
+            // Exclude huge utility windows (like desktop backdrops or full-screen overlay containers) in layers > 0
+            if win.windowLayer > 0 {
+                // If it spans almost the entire screen, exclude it to prevent hijacking
+                if frame.width >= screen.frame.width - 20 && frame.height >= screen.frame.height - 20 {
+                    return nil
+                }
+            }
+            
+            return SnapWindow(windowID: win.windowID, frame: frame, windowLayer: win.windowLayer)
+        }
         // Light up the window under the cursor now that we know the windows.
         if !didDrag, startPoint == nil { updateHoverFromGlobalMouse() }
+    }
+
+    private static func dockFrame(on screen: NSScreen) -> CGRect? {
+        let frame = screen.frame
+        let visible = screen.visibleFrame
+        
+        // If visible frame is identical to frame, Dock is hidden/autohide is enabled.
+        if visible == frame {
+            return nil
+        }
+        
+        let primary = NSScreen.screens.first(where: { $0.frame.origin == .zero }) ?? screen
+        
+        // Dock is at the bottom
+        if visible.minY > frame.minY {
+            let height = visible.minY - frame.minY
+            let cgY = primary.frame.maxY - (frame.minY + height)
+            return CGRect(x: frame.minX, y: cgY, width: frame.width, height: height)
+        }
+        
+        // Dock is on the left
+        if visible.minX > frame.minX {
+            let width = visible.minX - frame.minX
+            let cgY = primary.frame.maxY - frame.maxY
+            return CGRect(x: frame.minX, y: cgY, width: width, height: frame.height)
+        }
+        
+        // Dock is on the right
+        if visible.maxX < frame.maxX {
+            let width = frame.maxX - visible.maxX
+            let cgY = primary.frame.maxY - frame.maxY
+            return CGRect(x: visible.maxX, y: cgY, width: width, height: frame.height)
+        }
+        
+        return nil
     }
 
     func updateHoverFromGlobalMouse() {
@@ -482,7 +547,7 @@ final class SelectionView: NSView {
 
     /// Find the topmost SCWindow under `localPoint` (in this view's local coordinates).
     /// Returns (SCWindow, local rect).
-    private func topmostWindow(atLocal localPoint: NSPoint) -> (SCWindow, NSRect)? {
+    private func topmostWindow(atLocal localPoint: NSPoint) -> (SnapWindow, NSRect)? {
         guard let win = window else { return nil }
         let globalPoint = win.convertPoint(toScreen: localPoint)
         let primary = Self.primaryScreen()
