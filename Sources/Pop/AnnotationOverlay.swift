@@ -450,7 +450,9 @@ final class AnnotationCanvasView: NSView {
 
 // MARK: - Overlay window
 
-final class AnnotationOverlayWindow: NSWindow {
+/// A non-activating panel: it takes keyboard (annotation shortcuts, text-tool typing)
+/// without activating the app. Forcing activation flashed the screen on show/dismiss.
+final class AnnotationOverlayWindow: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
 }
@@ -473,7 +475,12 @@ final class AnnotationOverlayController {
     /// - rectGlobal: selection rect in global screen coords (bottom-left origin)
     /// - screen: the screen the selection is on
     func present(base: CGImage, rectGlobal: CGRect, screen: NSScreen) {
-        dismiss()
+        // Clear only a stale annotation window from a prior run — NOT the selection
+        // overlay, which was just set up by this same capture flow and must stay
+        // underneath to keep dimming/freezing the screen behind us. (dismiss() would
+        // tear that selection overlay down, leaving the toolbar floating over a live,
+        // un-frozen desktop.)
+        teardownAnnotation()
 
         let model = OverlayModel()
         let selLocal = CGRect(
@@ -512,7 +519,7 @@ final class AnnotationOverlayController {
 
         let win = AnnotationOverlayWindow(
             contentRect: screen.frame,
-            styleMask: [.borderless],
+            styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
@@ -574,8 +581,9 @@ final class AnnotationOverlayController {
             }
         }
 
-        NSApp.activate(ignoringOtherApps: true)
-        win.makeKeyAndOrderFront(nil)
+        // Non-activating panel: take key without activating the app (no flash).
+        win.orderFrontRegardless()
+        win.makeKey()
         // Do NOT dismiss the selection overlay. It stays underneath to keep providing
         // the dimming; we only stop it from handling keys so the annotation layer owns
         // all input. Both layers are torn down together in dismiss().
@@ -622,12 +630,18 @@ final class AnnotationOverlayController {
     }
 
     private func dismiss() {
+        teardownAnnotation()
+        // Tear down the selection overlay that stayed up underneath.
+        RegionSelectionController.shared.dismiss()
+    }
+
+    /// Tear down only this controller's own window + key monitor, leaving the selection
+    /// overlay (the frozen/dimmed backdrop) untouched.
+    private func teardownAnnotation() {
         if let m = keyMonitor { NSEvent.removeMonitor(m); keyMonitor = nil }
         window?.orderOut(nil)
         window = nil
         canvas = nil
-        // Tear down the selection overlay that stayed up underneath.
-        RegionSelectionController.shared.dismiss()
     }
 
     private static func timestamp() -> String {

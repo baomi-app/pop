@@ -1,17 +1,32 @@
 import AppKit
 import ScreenCaptureKit
+import CoreGraphics
 import Carbon.HIToolbox
 
 /// Unified capture selection overlay (covers every screen).
+///
+/// The screen is FROZEN: on the hotkey we grab each display with CGDisplayCreateImage and
+/// show it dimmed. The grab matches the display's tone-mapping (no gray) and runs before we
+/// take focus (transient UI like Spotlight stays in the shot). The overlay is a
+/// non-activating panel, so it takes keyboard without activating the app — forcing
+/// activation flashed the screen on both show and dismiss.
+///
+/// KNOWN UNSOLVED: on a Liquid Retina XDR (HDR/EDR) display, the capture itself makes the
+/// display briefly drop EDR headroom — a flash on show. Confirmed it's the capture (no
+/// capture = no flash; every capture API flashes). macOS's own *continuous* screen
+/// recording doesn't flash, so the lead is a kept-alive SCStream you read frames from
+/// (never a one-shot grab, never stop mid-session) — untested here; loose ends are the
+/// HDR→CGImage colour (to avoid a gray wash) and a possible flash when the stream stops.
 /// - Hover: highlight the window under the cursor
-/// - Click: capture the hit window
+/// - Click: capture the hit window (cropped from the frozen snapshot)
 /// - Drag: region capture
 /// - Return / Enter: full screen (the screen under the cursor)
 /// - Esc: cancel
 enum CaptureIntent {
-    case region(CGRect)        // Global NSScreen coordinates (bottom-left origin)
-    case window(SCWindow)
-    case fullScreen
+    /// Region selection: cropped image + where it sat on screen (for in-place editing).
+    case region(image: CGImage, rectGlobal: CGRect)
+    /// Window / full-screen grab that goes straight to finalize (no editing step).
+    case direct(image: CGImage)
     case cancel
 }
 
@@ -28,27 +43,59 @@ final class RegionSelectionController {
             return
         }
 
-        Task {
-            let snapshot = (try? await ScreenCaptureService.shareableContent().windows) ?? []
-            let myBundle = Bundle.main.bundleIdentifier
-            let filtered = snapshot.filter { win in
-                win.isOnScreen
-                    && win.owningApplication != nil
-                    && win.owningApplication?.bundleIdentifier != myBundle
-                    && win.windowLayer == 0                 // Regular app windows only (exclude Dock, wallpaper, menus)
-                    && win.frame.width > 40 && win.frame.height > 40
-            }
-            // SCShareableContent.windows is NOT reliably in z-order, so a hotkey-raised
-            // (but unfocused) window could rank behind others and fail to snap. Re-sort
-            // by the true front-to-back order from the window server.
-            let zIndex = Self.zOrderIndex()
-            let candidates = filtered.sorted {
-                (zIndex[$0.windowID] ?? Int.max) < (zIndex[$1.windowID] ?? Int.max)
-            }
-            await MainActor.run {
-                self.present(candidates: candidates, completion: completion)
+        // Grab each display synchronously with CGDisplayCreateImage (one capture → one
+        // flash; it matches the display's tone-mapping, so no gray), then show the overlay
+        // already frozen. NOTE: capturing the screen flashes the XDR display once — an
+        // unsolved hardware/OS behavior (see header). The grab runs before we take focus, so
+        // transient UI (Spotlight) stays in the shot.
+        var shots: [CGDirectDisplayID: CGImage] = [:]
+        for screen in NSScreen.screens {
+            if let img = CGDisplayCreateImage(screen.displayID) {
+                shots[screen.displayID] = img
             }
         }
+        present(shots: shots, completion: completion)
+
+        // The window list (hover highlight + click-to-capture-window) needs
+        // SCShareableContent, which is async-only; load it in the background and inject it.
+        Task { [weak self] in
+            let content = try? await ScreenCaptureService.shareableContent()
+            let myBundle = Bundle.main.bundleIdentifier
+            var candidates: [SCWindow] = []
+            if let content {
+                let filtered = content.windows.filter { win in
+                    win.isOnScreen
+                        && win.owningApplication != nil
+                        && win.owningApplication?.bundleIdentifier != myBundle
+                        && win.windowLayer == 0          // Regular app windows only (exclude Dock, wallpaper, menus)
+                        && win.frame.width > 40 && win.frame.height > 40
+                }
+                // SCShareableContent.windows is NOT reliably in z-order, so a hotkey-raised
+                // (but unfocused) window could rank behind others and fail to snap. Re-sort by
+                // the true front-to-back order from the window server.
+                let zIndex = Self.zOrderIndex()
+                candidates = filtered.sorted {
+                    (zIndex[$0.windowID] ?? Int.max) < (zIndex[$1.windowID] ?? Int.max)
+                }
+            }
+            await MainActor.run { self?.updateCandidates(candidates) }
+        }
+    }
+
+    /// Inject the window list into the already-visible overlay (loads a moment after the
+    /// synchronous freeze).
+    private func updateCandidates(_ candidates: [SCWindow]) {
+        for win in windows {
+            (win.contentView as? SelectionView)?.setCandidates(candidates)
+        }
+    }
+
+    /// The frozen still for the given screen.
+    private func snapshot(for screen: NSScreen) -> CGImage? {
+        for win in windows where win.displayID == screen.displayID {
+            return (win.contentView as? SelectionView)?.snapshotImage
+        }
+        return nil
     }
 
     /// Maps each on-screen window number to its front-to-back z-order index (0 = frontmost),
@@ -67,7 +114,8 @@ final class RegionSelectionController {
         return map
     }
 
-    private func present(candidates: [SCWindow], completion: @escaping (CaptureIntent, NSScreen) -> Void) {
+    private func present(shots: [CGDirectDisplayID: CGImage],
+                         completion: @escaping (CaptureIntent, NSScreen) -> Void) {
         let finish: (CaptureIntent, NSScreen) -> Void = { [weak self] intent, screen in
             // For region capture, keep the dimming overlay up so there's no bright
             // flash between selecting and the annotation layer appearing; the caller
@@ -81,8 +129,10 @@ final class RegionSelectionController {
             }
         }
 
+        // Windows open dimming the LIVE screen (snapshot nil); applyFreeze() swaps the
+        // frozen still in once the behind-the-dim capture lands.
         for screen in NSScreen.screens {
-            let win = SelectionWindow(screen: screen, candidates: candidates)
+            let win = SelectionWindow(screen: screen, candidates: [], snapshot: shots[screen.displayID])
             win.onIntent = { intent in finish(intent, screen) }
             windows.append(win)
         }
@@ -94,22 +144,33 @@ final class RegionSelectionController {
                 finish(.cancel, NSScreen.main ?? NSScreen.screens[0])
                 return nil
             case kVK_Return, kVK_ANSI_KeypadEnter:
+                // Full screen also opens the in-place annotation editor (rect = the whole
+                // screen under the cursor), matching region and window capture.
                 let screen = self.screenUnderCursor()
-                finish(.fullScreen, screen)
+                if let img = self.snapshot(for: screen) {
+                    finish(.region(image: img, rectGlobal: screen.frame), screen)
+                } else {
+                    finish(.cancel, screen)   // capture not landed yet
+                }
                 return nil
             default:
                 return event
             }
         }
 
-        NSApp.activate(ignoringOtherApps: true)
+        // Show the frozen overlay windows (at .screenSaver level, covering every display)
+        // and force each to draw its still before it appears, so the first composited frame
+        // is already the dimmed freeze.
         for win in windows {
             win.orderFrontRegardless()
+            win.contentView?.display()
         }
+        // Non-activating panel: make it key for keyboard input. This is a far gentler
+        // focus change than NSApp.activate(ignoringOtherApps:), which caused the
+        // window-server flash on both show and dismiss.
         windows.first?.makeKey()
 
-        // Trigger a highlight at the current mouse position right away, so the user
-        // doesn't have to move the mouse first.
+        // Highlight the window under the cursor right away, without needing a mouse move.
         let mouse = NSEvent.mouseLocation
         for win in windows where win.frame.contains(mouse) {
             (win.contentView as? SelectionView)?.updateHoverFromGlobalMouse()
@@ -157,16 +218,24 @@ final class RegionSelectionController {
 
 // MARK: - Selection window
 
-final class SelectionWindow: NSWindow {
+final class SelectionWindow: NSPanel {
     var onIntent: ((CaptureIntent) -> Void)?
+    let displayID: CGDirectDisplayID
 
-    init(screen: NSScreen, candidates: [SCWindow]) {
+    init(screen: NSScreen, candidates: [SCWindow], snapshot: CGImage?) {
+        self.displayID = screen.displayID
         super.init(
             contentRect: screen.frame,
-            styleMask: [.borderless],
+            // .nonactivatingPanel lets the overlay become key and receive keyboard
+            // (Esc / Return) WITHOUT activating the app. Forcing activation
+            // (NSApp.activate(ignoringOtherApps:)) caused a window-server transition that
+            // flashed the screen on both show and dismiss; a non-activating panel avoids it.
+            styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
+        // Transparent: the overlay dims the live screen (and later the frozen still drawn on
+        // top), so it must let the screen show through where it isn't painted.
         isOpaque = false
         backgroundColor = .clear
         level = .screenSaver
@@ -177,16 +246,15 @@ final class SelectionWindow: NSWindow {
         setFrame(screen.frame, display: true)
 
         let view = SelectionView(frame: NSRect(origin: .zero, size: screen.frame.size),
-                                 candidates: candidates)
+                                 candidates: candidates,
+                                 snapshot: snapshot)
         view.onLocalIntent = { [weak self] localIntent in
             guard let self else { return }
             switch localIntent {
-            case .region(let r):
-                self.onIntent?(.region(self.convertToScreen(r)))
-            case .window(let w):
-                self.onIntent?(.window(w))
-            case .fullScreen:
-                self.onIntent?(.fullScreen)
+            case .region(let image, let rectLocal):
+                self.onIntent?(.region(image: image, rectGlobal: self.convertToScreen(rectLocal)))
+            case .direct(let image):
+                self.onIntent?(.direct(image: image))
             case .cancel:
                 self.onIntent?(.cancel)
             }
@@ -201,16 +269,17 @@ final class SelectionWindow: NSWindow {
 // MARK: - Selection view
 
 private enum LocalIntent {
-    case region(NSRect)
-    case window(SCWindow)
-    case fullScreen
+    case region(image: CGImage, rectLocal: NSRect)
+    case direct(image: CGImage)
     case cancel
 }
 
 final class SelectionView: NSView {
     fileprivate var onLocalIntent: ((LocalIntent) -> Void)?
 
-    private let candidates: [SCWindow]
+    private var candidates: [SCWindow]
+    private let snapshot: CGImage?      // frozen full-screen image (native px), for cropping
+    private let nsSnapshot: NSImage?    // same, for drawing
 
     private var startPoint: NSPoint?
     private var currentRect: NSRect?
@@ -220,12 +289,17 @@ final class SelectionView: NSView {
     private var trackingArea: NSTrackingArea?
     private var committed = false   // frozen after an intent is sent; stops repaint flicker
 
-    init(frame: NSRect, candidates: [SCWindow]) {
+    init(frame: NSRect, candidates: [SCWindow], snapshot: CGImage?) {
         self.candidates = candidates
+        self.snapshot = snapshot
+        self.nsSnapshot = snapshot.map { NSImage(cgImage: $0, size: frame.size) }
         super.init(frame: frame)
     }
 
     required init?(coder: NSCoder) { fatalError() }
+
+    /// The frozen still for this display (used for full-screen capture via Return).
+    var snapshotImage: CGImage? { snapshot }
 
     override var acceptsFirstResponder: Bool { true }
 
@@ -296,6 +370,10 @@ final class SelectionView: NSView {
     override func mouseUp(with event: NSEvent) {
         guard !committed else { return }
         if didDrag, let rect = currentRect, rect.width > 4, rect.height > 4 {
+            // If the behind-the-dim capture hasn't landed yet (snapshot nil), there's
+            // nothing to crop — leave the selection uncommitted so the user can release
+            // again a moment later. (The capture lands well within human reaction time.)
+            guard let img = crop(rect) else { return }
             committed = true
             // Redraw NOW into the committed state (cut-out kept bright, but our own
             // border dropped) and flush synchronously, so the live-drag border is gone
@@ -304,16 +382,23 @@ final class SelectionView: NSView {
             // appears to jitter.
             needsDisplay = true
             displayIfNeeded()
-            onLocalIntent?(.region(rect))
+            onLocalIntent?(.region(image: img, rectLocal: rect))
             return
         }
         // Capture window: re-hit-test at the actual click point rather than relying on
         // the cached hover (which only updates on mouseMoved and can be stale/nil,
         // causing the "sometimes snaps, sometimes doesn't" behavior).
         let clickPoint = convert(event.locationInWindow, from: nil)
-        if let (win, _) = topmostWindow(atLocal: clickPoint) {
+        if let (_, localRect) = topmostWindow(atLocal: clickPoint) {
+            let rect = localRect.intersection(bounds)
+            guard !rect.isNull, !rect.isEmpty, let img = crop(rect) else { return }
             committed = true
-            onLocalIntent?(.window(win))
+            currentRect = rect          // keep this block bright in the committed backdrop
+            needsDisplay = true
+            displayIfNeeded()
+            // Window capture opens the same in-place annotation editor as region, anchored
+            // at the window's frame — so it can be marked up before copy/save.
+            onLocalIntent?(.region(image: img, rectLocal: rect))
             return
         }
         // Nothing selected: reset for another attempt.
@@ -321,6 +406,28 @@ final class SelectionView: NSView {
         currentRect = nil
         didDrag = false
         needsDisplay = true
+    }
+
+    /// Crop a local (bottom-left origin, points) rect out of the frozen snapshot,
+    /// returning native-pixel image content.
+    private func crop(_ localRect: NSRect) -> CGImage? {
+        guard let snap = snapshot, bounds.width > 0, bounds.height > 0 else { return nil }
+        let sx = CGFloat(snap.width) / bounds.width
+        let sy = CGFloat(snap.height) / bounds.height
+        let px = CGRect(
+            x: localRect.minX * sx,
+            y: (bounds.height - localRect.maxY) * sy,   // points bottom-left → pixels top-left
+            width: localRect.width * sx,
+            height: localRect.height * sy
+        ).integral
+        return snap.cropping(to: px)
+    }
+
+    /// Receive the window list once it has loaded (the freeze is shown before it's ready).
+    func setCandidates(_ c: [SCWindow]) {
+        candidates = c
+        // Light up the window under the cursor now that we know the windows.
+        if !didDrag, startPoint == nil { updateHoverFromGlobalMouse() }
     }
 
     func updateHoverFromGlobalMouse() {
@@ -385,18 +492,18 @@ final class SelectionView: NSView {
     }
 
     override func draw(_ dirtyRect: NSRect) {
+        // Frozen base image (if the snapshot failed, fall back to a transparent live view).
+        nsSnapshot?.draw(in: bounds)
+        // Dim everything on top of the base.
         NSColor.black.withAlphaComponent(0.28).setFill()
         bounds.fill()
 
-        // After commit, KEEP the cut-out open (selected region stays bright) but draw no
+        // After commit, KEEP the cut-out bright (selected region) but draw no
         // border/label/hint. The annotation layer is placed on top and paints the
         // screenshot + the single border into the same region. Because the region stays
         // bright throughout, there's no dark frame and thus no jitter during hand-off.
         if committed {
-            if let rect = currentRect {
-                NSColor.clear.setFill()
-                rect.fill(using: .copy)
-            }
+            if let rect = currentRect { revealBright(rect) }
             return
         }
 
@@ -404,8 +511,7 @@ final class SelectionView: NSView {
 
         // Region selection takes priority.
         if let rect = currentRect, didDrag {
-            NSColor.clear.setFill()
-            rect.fill(using: .copy)
+            revealBright(rect)
 
             let border = NSBezierPath(rect: rect)
             border.lineWidth = 2
@@ -430,14 +536,27 @@ final class SelectionView: NSView {
         if let rect = hoveredLocalRect {
             let clipped = rect.intersection(bounds)
             guard !clipped.isNull, !clipped.isEmpty else { return }
-            NSColor.clear.setFill()
-            clipped.fill(using: .copy)
+            revealBright(clipped)
 
             let border = NSBezierPath(rect: clipped)
             border.lineWidth = 3
             NSColor(calibratedRed: 1.0, green: 0.823, blue: 0.290, alpha: 1).setStroke()
             border.stroke()
         }
+    }
+
+    /// Restore the frozen image at full brightness within `rect` (undoing the dim there).
+    /// Falls back to punching a transparent hole (live screen) when no snapshot exists.
+    private func revealBright(_ rect: NSRect) {
+        guard let img = nsSnapshot else {
+            NSColor.clear.setFill()
+            rect.fill(using: .copy)
+            return
+        }
+        NSGraphicsContext.current?.saveGraphicsState()
+        NSBezierPath(rect: rect).addClip()
+        img.draw(in: bounds)
+        NSGraphicsContext.current?.restoreGraphicsState()
     }
 
     private func drawHint() {

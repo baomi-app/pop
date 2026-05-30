@@ -11,6 +11,10 @@ settings:
     SWIFT_VERSION: "5.0"
     MARKETING_VERSION: "0.2.0"
     CURRENT_PROJECT_VERSION: "1"
+    # Produce a single self-contained executable instead of the split Xcode-16 "debug
+    # dylib" (Pop.debug.dylib). That split binary breaks when we re-sign with our stable
+    # dev identity (dyld rejects the dylib for a Team-ID mismatch), so disable it.
+    ENABLE_DEBUG_DYLIB: NO
 
 targets:
   Pop:
