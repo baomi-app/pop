@@ -241,8 +241,14 @@ final class RegionSelectionController {
 
     /// Keep the overlay windows visible (they keep dimming the screen behind the
     /// annotation layer) but stop handling keys, so the annotation layer owns all input.
+    /// In multi-monitor setups, this also disables mouse events on all other displays so
+    /// clicking them does not trigger secondary selections or dismiss the active annotation.
     func freeze() {
         if let m = keyMonitor { NSEvent.removeMonitor(m); keyMonitor = nil }
+        for win in windows {
+            // Keep ignoresMouseEvents as false so other displays still swallow clicks
+            (win.contentView as? SelectionView)?.freezeSelection()
+        }
     }
 
     /// Move the committed cut-out (the bright hole in the dim overlay) to a new rect.
@@ -298,6 +304,7 @@ final class SelectionWindow: NSPanel {
         backgroundColor = .clear
         level = .screenSaver
         ignoresMouseEvents = false
+        hidesOnDeactivate = false
         hasShadow = false
         acceptsMouseMovedEvents = true
         collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
@@ -370,6 +377,10 @@ final class SelectionView: NSView {
 
     override var acceptsFirstResponder: Bool { true }
 
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+        return true
+    }
+
     override func resetCursorRects() {
         addCursorRect(bounds, cursor: .crosshair)
     }
@@ -388,6 +399,7 @@ final class SelectionView: NSView {
     }
 
     override func mouseMoved(with event: NSEvent) {
+        guard !committed else { return }
         guard !didDrag, startPoint == nil else { return }
         updateHover(at: convert(event.locationInWindow, from: nil))
     }
@@ -571,21 +583,24 @@ final class SelectionView: NSView {
     }
 
     private static func notificationBannerFrame(on screen: NSScreen) -> CGRect {
-        let menuBarHeight: CGFloat = 33 // Standard on modern macOS with notch
+        // Dynamically compute the menu bar height on the active screen.
+        // On modern notch screens, this is ~33-38pt; on external or older screens, it is 24pt.
+        let dynamicMenuBarHeight = max(24, screen.frame.maxY - screen.visibleFrame.maxY)
         
-        let bannerWidth: CGFloat = 348
+        let bannerWidth: CGFloat = 344
         let bannerHeight: CGFloat = 74
         let rightPadding: CGFloat = 16
         let topPadding: CGFloat = 16
         
         let primary = NSScreen.screens.first(where: { $0.frame.origin == .zero }) ?? screen
-        let cgY = primary.frame.maxY - screen.frame.maxY + menuBarHeight + topPadding
+        let cgY = primary.frame.maxY - screen.frame.maxY + dynamicMenuBarHeight + topPadding
         let cgX = screen.frame.maxX - bannerWidth - rightPadding
         
         return CGRect(x: cgX, y: cgY, width: bannerWidth, height: bannerHeight)
     }
 
     func updateHoverFromGlobalMouse() {
+        guard !committed else { return }
         guard let win = window else { return }
         let global = NSEvent.mouseLocation
         let local = convert(win.convertPoint(fromScreen: global), from: nil)
@@ -598,7 +613,15 @@ final class SelectionView: NSView {
         needsDisplay = true
     }
 
+    func freezeSelection() {
+        committed = true
+        hoveredWindow = nil
+        hoveredLocalRect = nil
+        needsDisplay = true
+    }
+
     private func updateHover(at localPoint: NSPoint) {
+        guard !committed else { return }
         guard let (win, localRect) = topmostWindow(atLocal: localPoint) else {
             if hoveredWindow != nil {
                 hoveredWindow = nil
@@ -658,7 +681,9 @@ final class SelectionView: NSView {
         // screenshot + the single border into the same region. Because the region stays
         // bright throughout, there's no dark frame and thus no jitter during hand-off.
         if committed {
-            if let rect = currentRect { revealBright(rect) }
+            if let rect = currentRect {
+                revealBright(rect)
+            }
             return
         }
 

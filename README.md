@@ -4,6 +4,9 @@ A screenshot tool for macOS. **Snap, and it pops.**
 
 [中文说明](README.zh-Hans.md)
 
+![Pop Screenshot Banner](assets/notification_snap.png)
+
+
 ## Download
 
 Grab the latest `Pop.zip` from [Releases](../../releases), unzip it, and drag `Pop.app` into Applications.
@@ -28,12 +31,13 @@ After the first time, double-clicking works normally.
 
 Press `⌘⇧X` to bring up the selection overlay:
 
+![Pop App In Action](assets/app_snap.png)
+
 - Hover → highlights the window under the cursor; **click** = capture window
 - **Drag** = capture region
 - **↩** = capture full screen · **⎋** = cancel
 
-**Region capture opens in-place annotation.** The selected area freezes in place, a
-toolbar appears next to it, and you draw directly on screen:
+**Region capture opens in-place annotation.** The selected area freezes in place, a toolbar appears next to it, and you draw directly on screen:
 
 - Tools: arrow, line, rectangle, ellipse, freehand pen, text, mosaic (blur)
 - 7 colors · 3 line widths

@@ -277,8 +277,20 @@ final class AnnotationCanvasView: NSView {
     override var isFlipped: Bool { false }
     override var acceptsFirstResponder: Bool { true }
 
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+        return true
+    }
+
     override func resetCursorRects() {
         addCursorRect(selRect, cursor: .crosshair)
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        if let hit = super.hitTest(point) {
+            return hit
+        }
+        // If it hit a transparent area (returning nil), consume the hit to prevent click-through
+        return self
     }
 
     // MARK: Editing API (wired to toolbar)
@@ -320,11 +332,13 @@ final class AnnotationCanvasView: NSView {
     // MARK: Drawing
 
     override func draw(_ dirtyRect: NSRect) {
-        // Transparent background on purpose: the selection overlay underneath stays up
-        // and supplies the dimming. We only paint the frozen screenshot + annotations
-        // here, so there is never a frame with two dim layers stacked (which darkened
-        // the whole screen) nor a frame with neither layer (which flashed the desktop).
-        // The screenshot block lands exactly over the selection overlay's cut-out.
+        // Draw the standard 0.28 dimming backdrop over the entire screen.
+        // This ensures the background area has alpha 0.28 (completely solid to macOS
+        // Window Server hit-testing), preventing all click-through deactivations, while
+        // the selected rect is painted bright on top by AnnotationRenderer.
+        NSColor.black.withAlphaComponent(0.28).set()
+        bounds.fill()
+
         AnnotationRenderer.draw(base: baseImage, pixelated: pixelImage,
                                 annotations: annotations, draft: draft,
                                 into: selRect, lineScale: 1)
@@ -524,8 +538,9 @@ final class AnnotationOverlayController {
             defer: false
         )
         win.isOpaque = false
-        win.backgroundColor = .clear
+        win.backgroundColor = NSColor.black.withAlphaComponent(0.001)
         win.level = .screenSaver
+        win.hidesOnDeactivate = false
         win.hasShadow = false
         win.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
         win.setFrame(screen.frame, display: true)
