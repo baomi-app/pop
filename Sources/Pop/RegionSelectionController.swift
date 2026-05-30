@@ -43,22 +43,27 @@ final class RegionSelectionController {
             return
         }
 
-        // Show the selection overlay instantly with snapshot: nil, so the screen is dimmed
-        // immediately without any flash.
-        present(shots: [:], completion: completion)
-
-        // Start the continuous screen stream capture asynchronously
+        // Start the continuous screen stream capture asynchronously, and only present
+        // the overlays once we have the clean, frozen snapshots for all screens!
         Task { [weak self] in
             do {
-                try await ScreenStreamCapturer.shared.start(on: NSScreen.screens) { [weak self] displayID, cgImage in
+                var shots: [CGDirectDisplayID: CGImage] = [:]
+                let screens = NSScreen.screens
+                
+                try await ScreenStreamCapturer.shared.start(on: screens) { [weak self] displayID, cgImage in
                     guard let self else { return }
-                    // Update the selection window for this display with the captured image
-                    for win in self.windows where win.displayID == displayID {
-                        win.updateSnapshot(cgImage)
+                    
+                    // Collect the snapshot for this screen
+                    shots[displayID] = cgImage
+                    
+                    // Once we have frames for all active screens, present the overlay!
+                    if shots.count == screens.count {
+                        self.present(shots: shots, completion: completion)
                     }
                 }
             } catch {
                 NSLog("[Pop] Failed to start screen stream capture: \(error)")
+                completion(.cancel, NSScreen.main ?? NSScreen.screens[0])
             }
         }
 
