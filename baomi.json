@@ -3,8 +3,9 @@
   "status": "released",
   "icon": "icon.svg",
   "screenshots": [
-    "assets/notification_snap.png",
-    "assets/app_snap.png"
+    "assets/app_snap.png",
+    "assets/settings.png",
+    "assets/notification_snap.png"
   ],
   "accent": { "from": "#fbbf24", "to": "#f97316" },
   "platform": { "en": "macOS", "zh": "macOS" },

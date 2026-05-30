@@ -46,6 +46,8 @@ Press `⌘⇧X` to bring up the selection overlay:
 Window and full-screen captures are copied to the clipboard directly (no editing step).
 Custom hotkey, auto-save-to-disk, and launch-at-login live in the menu-bar icon → Preferences.
 
+![Pop Preferences Settings](assets/settings.png)
+
 On the first capture, macOS asks for **Screen Recording** permission. Grant it, then
 quit and relaunch Pop.
 

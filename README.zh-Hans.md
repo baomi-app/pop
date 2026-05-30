@@ -45,6 +45,8 @@ xattr -dr com.apple.quarantine /Applications/Pop.app
 
 窗口截图和全屏截图直接复制到剪贴板（不进编辑）。自定义快捷键、自动保存到本地、开机启动都在菜单栏图标 → 偏好设置。
 
+![Pop 首选项设置](assets/settings.png)
+
 首次截图系统会要求**屏幕录制**权限，授权后退出 Pop 再打开。
 
 ## 开发
