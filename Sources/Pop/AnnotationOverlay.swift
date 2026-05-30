@@ -537,7 +537,12 @@ final class AnnotationOverlayController {
         var tbX = selLocal.midX - tbW / 2
         tbX = min(max(tbX, 8), screen.frame.width - tbW - 8)
         var tbY = selLocal.minY - tbH - 10                  // below selection
-        if tbY < 8 { tbY = min(selLocal.maxY + 10, screen.frame.height - tbH - 8) }
+        if tbY < 8 {
+            tbY = selLocal.maxY + 10                        // try above selection
+            if tbY > screen.frame.height - tbH - 50 {       // if top goes into the notch/menu bar, place at the bottom inside selection
+                tbY = 40
+            }
+        }
         toolbar.frame = NSRect(x: tbX, y: tbY, width: tbW, height: tbH)
         canvas.addSubview(toolbar)
 
@@ -548,7 +553,12 @@ final class AnnotationOverlayController {
             var x = rect.midX - tbW / 2
             x = min(max(x, 8), screen.frame.width - tbW - 8)
             var y = rect.minY - tbH - 10
-            if y < 8 { y = min(rect.maxY + 10, screen.frame.height - tbH - 8) }
+            if y < 8 {
+                y = rect.maxY + 10
+                if y > screen.frame.height - tbH - 50 {
+                    y = 40
+                }
+            }
             NSAnimationContext.runAnimationGroup { ctx in
                 ctx.duration = 0.16
                 ctx.allowsImplicitAnimation = true
