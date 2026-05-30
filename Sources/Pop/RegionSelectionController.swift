@@ -43,61 +43,57 @@ final class RegionSelectionController {
             return
         }
 
-        // Start the continuous screen stream capture asynchronously, and only present
-        // the overlays once we have the clean, frozen snapshots for all screens!
+        // Start continuous screen capture and concurrently load the window list.
+        // Overlays are presented only once both are ready, eliminating all race conditions!
         Task { [weak self] in
             do {
-                var shots: [CGDirectDisplayID: CGImage] = [:]
-                let screens = NSScreen.screens
-                
-                try await ScreenStreamCapturer.shared.start(on: screens) { [weak self] displayID, cgImage in
-                    guard let self else { return }
+                async let shotsTask: [CGDirectDisplayID: CGImage] = withCheckedThrowingContinuation { continuation in
+                    var shots: [CGDirectDisplayID: CGImage] = [:]
+                    let screens = NSScreen.screens
                     
-                    // Collect the snapshot for this screen
-                    shots[displayID] = cgImage
-                    
-                    // Once we have frames for all active screens, present the overlay!
-                    if shots.count == screens.count {
-                        self.present(shots: shots, completion: completion)
+                    Task {
+                        do {
+                            try await ScreenStreamCapturer.shared.start(on: screens) { displayID, cgImage in
+                                shots[displayID] = cgImage
+                                if shots.count == screens.count {
+                                    continuation.resume(returning: shots)
+                                }
+                            }
+                        } catch {
+                            continuation.resume(throwing: error)
+                        }
                     }
                 }
+                
+                async let candidatesTask: [SCWindow] = {
+                    let content = try? await ScreenCaptureService.shareableContent()
+                    let myBundle = Bundle.main.bundleIdentifier
+                    var candidates: [SCWindow] = []
+                    if let content {
+                        let filtered = content.windows.filter { win in
+                            win.isOnScreen
+                                && win.owningApplication != nil
+                                && win.owningApplication?.bundleIdentifier != myBundle
+                                && win.windowLayer == 0          // Regular app windows only (exclude Dock, wallpaper, menus)
+                                && win.frame.width > 40 && win.frame.height > 40
+                        }
+                        let zIndex = Self.zOrderIndex()
+                        candidates = filtered.sorted {
+                            (zIndex[$0.windowID] ?? Int.max) < (zIndex[$1.windowID] ?? Int.max)
+                        }
+                    }
+                    return candidates
+                }()
+                
+                let (shots, candidates) = try await (shotsTask, candidatesTask)
+                
+                guard let self else { return }
+                self.present(shots: shots, candidates: candidates, completion: completion)
+                
             } catch {
-                NSLog("[Pop] Failed to start screen stream capture: \(error)")
+                NSLog("[Pop] Failed to initialize capture session: \(error)")
                 completion(.cancel, NSScreen.main ?? NSScreen.screens[0])
             }
-        }
-
-        // The window list (hover highlight + click-to-capture-window) needs
-        // SCShareableContent, which is async-only; load it in the background and inject it.
-        Task { [weak self] in
-            let content = try? await ScreenCaptureService.shareableContent()
-            let myBundle = Bundle.main.bundleIdentifier
-            var candidates: [SCWindow] = []
-            if let content {
-                let filtered = content.windows.filter { win in
-                    win.isOnScreen
-                        && win.owningApplication != nil
-                        && win.owningApplication?.bundleIdentifier != myBundle
-                        && win.windowLayer == 0          // Regular app windows only (exclude Dock, wallpaper, menus)
-                        && win.frame.width > 40 && win.frame.height > 40
-                }
-                // SCShareableContent.windows is NOT reliably in z-order, so a hotkey-raised
-                // (but unfocused) window could rank behind others and fail to snap. Re-sort by
-                // the true front-to-back order from the window server.
-                let zIndex = Self.zOrderIndex()
-                candidates = filtered.sorted {
-                    (zIndex[$0.windowID] ?? Int.max) < (zIndex[$1.windowID] ?? Int.max)
-                }
-            }
-            await MainActor.run { self?.updateCandidates(candidates) }
-        }
-    }
-
-    /// Inject the window list into the already-visible overlay (loads a moment after the
-    /// synchronous freeze).
-    private func updateCandidates(_ candidates: [SCWindow]) {
-        for win in windows {
-            (win.contentView as? SelectionView)?.setCandidates(candidates)
         }
     }
 
@@ -111,7 +107,7 @@ final class RegionSelectionController {
 
     /// Maps each on-screen window number to its front-to-back z-order index (0 = frontmost),
     /// taken from the window server, which — unlike SCShareableContent — is reliably ordered.
-    private static func zOrderIndex() -> [CGWindowID: Int] {
+    nonisolated private static func zOrderIndex() -> [CGWindowID: Int] {
         let opts: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
         guard let list = CGWindowListCopyWindowInfo(opts, kCGNullWindowID) as? [[String: Any]] else {
             return [:]
@@ -126,6 +122,7 @@ final class RegionSelectionController {
     }
 
     private func present(shots: [CGDirectDisplayID: CGImage],
+                         candidates: [SCWindow],
                          completion: @escaping (CaptureIntent, NSScreen) -> Void) {
         let finish: (CaptureIntent, NSScreen) -> Void = { [weak self] intent, screen in
             // For region capture, keep the dimming overlay up so there's no bright
@@ -143,7 +140,7 @@ final class RegionSelectionController {
         // Windows open dimming the LIVE screen (snapshot nil); applyFreeze() swaps the
         // frozen still in once the behind-the-dim capture lands.
         for screen in NSScreen.screens {
-            let win = SelectionWindow(screen: screen, candidates: [], snapshot: shots[screen.displayID])
+            let win = SelectionWindow(screen: screen, candidates: candidates, snapshot: shots[screen.displayID])
             win.onIntent = { intent in finish(intent, screen) }
             windows.append(win)
         }
