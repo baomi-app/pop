@@ -77,10 +77,15 @@ final class RegionSelectionController {
                     var candidates: [SCWindow] = []
                     if let content {
                         let filtered = content.windows.filter { win in
-                            win.isOnScreen
+                            let bundleId = win.owningApplication?.bundleIdentifier.lowercased() ?? ""
+                            let appName = win.owningApplication?.applicationName.lowercased() ?? ""
+                            let isNotification = bundleId.contains("notificationcenter") || appName.contains("notification center")
+                            let isValidLayer = (win.windowLayer >= 0 && win.windowLayer <= 25) || isNotification
+                            
+                            return win.isOnScreen
                                 && win.owningApplication != nil
                                 && win.owningApplication?.bundleIdentifier != myBundle
-                                && win.windowLayer >= 0 && win.windowLayer <= 25  // Normal app windows (0), Dock (20), Menu Bar (24), Notifications/floating overlays (25)
+                                && isValidLayer
                                 && win.frame.width > 40 && win.frame.height > 40
                         }
                         let zIndex = Self.zOrderIndex()
