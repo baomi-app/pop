@@ -7,6 +7,8 @@ struct SnapWindow {
     let windowID: CGWindowID
     let frame: CGRect
     let windowLayer: Int
+    let bundleIdentifier: String
+    let applicationName: String
 }
 
 /// Unified capture selection overlay (covers every screen).
@@ -71,28 +73,62 @@ final class RegionSelectionController {
                     }
                 }
                 
-                async let candidatesTask: [SCWindow] = {
-                    let content = try? await ScreenCaptureService.shareableContent()
-                    let myBundle = Bundle.main.bundleIdentifier
-                    var candidates: [SCWindow] = []
-                    if let content {
-                        let filtered = content.windows.filter { win in
-                            let bundleId = win.owningApplication?.bundleIdentifier.lowercased() ?? ""
-                            let appName = win.owningApplication?.applicationName.lowercased() ?? ""
-                            let isNotification = bundleId.contains("notificationcenter") || appName.contains("notification center")
-                            let isValidLayer = (win.windowLayer >= 0 && win.windowLayer <= 25) || isNotification
-                            
-                            return win.isOnScreen
-                                && win.owningApplication != nil
-                                && win.owningApplication?.bundleIdentifier != myBundle
-                                && isValidLayer
-                                && win.frame.width > 40 && win.frame.height > 40
-                        }
-                        let zIndex = Self.zOrderIndex()
-                        candidates = filtered.sorted {
-                            (zIndex[$0.windowID] ?? Int.max) < (zIndex[$1.windowID] ?? Int.max)
-                        }
+                async let candidatesTask: [SnapWindow] = {
+                    let opts: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
+                    guard let list = CGWindowListCopyWindowInfo(opts, kCGNullWindowID) as? [[String: Any]] else {
+                        return []
                     }
+                    
+                    let myBundle = Bundle.main.bundleIdentifier ?? ""
+                    var candidates: [SnapWindow] = []
+                    
+                    for info in list {
+                        guard let windowID = info[kCGWindowNumber as String] as? CGWindowID,
+                              let layer = info[kCGWindowLayer as String] as? Int,
+                              let boundsDict = info[kCGWindowBounds as String] as? [String: Any],
+                              let boundsX = boundsDict["X"] as? CGFloat,
+                              let boundsY = boundsDict["Y"] as? CGFloat,
+                              let boundsW = boundsDict["Width"] as? CGFloat,
+                              let boundsH = boundsDict["Height"] as? CGFloat else {
+                            continue
+                        }
+                        
+                        let ownerPID = info[kCGWindowOwnerPID as String] as? pid_t ?? 0
+                        let appName = info[kCGWindowOwnerName as String] as? String ?? ""
+                        let bundleId = ownerPID > 0 ? (NSRunningApplication(processIdentifier: ownerPID)?.bundleIdentifier ?? "") : ""
+                        
+                        // Skip our own windows
+                        if bundleId == myBundle {
+                            continue
+                        }
+                        
+                        // Must be visible, have non-trivial size
+                        if boundsW <= 40 || boundsH <= 40 {
+                            continue
+                        }
+                        
+                        // Layer check: normal app windows (0), Dock (20), Menu Bar (24), Notification Center (-2147483601, 25, etc.)
+                        let lowerBundle = bundleId.lowercased()
+                        let lowerName = appName.lowercased()
+                        let isNotification = lowerBundle.contains("notificationcenter") || lowerName.contains("notification center")
+                        
+                        let isValidLayer = (layer >= 0 && layer <= 25) || isNotification
+                        if !isValidLayer {
+                            continue
+                        }
+                        
+                        // CoreGraphics bounds are in CG coordinates (top-left origin).
+                        let frame = CGRect(x: boundsX, y: boundsY, width: boundsW, height: boundsH)
+                        
+                        candidates.append(SnapWindow(
+                            windowID: windowID,
+                            frame: frame,
+                            windowLayer: layer,
+                            bundleIdentifier: bundleId,
+                            applicationName: appName
+                        ))
+                    }
+                    
                     return candidates
                 }()
                 
@@ -133,7 +169,7 @@ final class RegionSelectionController {
     }
 
     private func present(shots: [CGDirectDisplayID: CGImage],
-                         candidates: [SCWindow],
+                         candidates: [SnapWindow],
                          completion: @escaping (CaptureIntent, NSScreen) -> Void) {
         let finish: (CaptureIntent, NSScreen) -> Void = { [weak self] intent, screen in
             // For region capture, keep the dimming overlay up so there's no bright
@@ -248,7 +284,7 @@ final class SelectionWindow: NSPanel {
         (contentView as? SelectionView)?.updateSnapshot(newSnapshot)
     }
 
-    init(screen: NSScreen, candidates: [SCWindow], snapshot: CGImage?) {
+    init(screen: NSScreen, candidates: [SnapWindow], snapshot: CGImage?) {
         self.displayID = screen.displayID
         super.init(
             contentRect: screen.frame,
@@ -323,7 +359,7 @@ final class SelectionView: NSView {
         needsDisplay = true
     }
 
-    init(frame: NSRect, screen: NSScreen, candidates: [SCWindow], snapshot: CGImage?) {
+    init(frame: NSRect, screen: NSScreen, candidates: [SnapWindow], snapshot: CGImage?) {
         self.screen = screen
         self.snapshot = snapshot
         self.nsSnapshot = snapshot.map { NSImage(cgImage: $0, size: frame.size) }
@@ -459,13 +495,12 @@ final class SelectionView: NSView {
     }
 
     /// Receive the window list once it has loaded (the freeze is shown before it's ready).
-    func setCandidates(_ c: [SCWindow]) {
+    func setCandidates(_ c: [SnapWindow]) {
         candidates = c.compactMap { win in
-            let bundleId = win.owningApplication?.bundleIdentifier ?? ""
             var frame = win.frame
             
             // If it is the Dock, we replace its full-screen frame with its actual physical visible frame!
-            if bundleId == "com.apple.dock", win.windowLayer == 20 {
+            if win.bundleIdentifier == "com.apple.dock", win.windowLayer == 20 {
                 guard let df = Self.dockFrame(on: screen) else {
                     return nil // Exclude if Dock is hidden/autohide is enabled
                 }
@@ -480,7 +515,13 @@ final class SelectionView: NSView {
                 }
             }
             
-            return SnapWindow(windowID: win.windowID, frame: frame, windowLayer: win.windowLayer)
+            return SnapWindow(
+                windowID: win.windowID,
+                frame: frame,
+                windowLayer: win.windowLayer,
+                bundleIdentifier: win.bundleIdentifier,
+                applicationName: win.applicationName
+            )
         }
         // Light up the window under the cursor now that we know the windows.
         if !didDrag, startPoint == nil { updateHoverFromGlobalMouse() }
