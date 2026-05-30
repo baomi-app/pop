@@ -107,12 +107,8 @@ final class RegionSelectionController {
                             continue
                         }
                         
-                        // Layer check: normal app windows (0), Dock (20), Menu Bar (24), Notification Center (-2147483601, 25, etc.)
-                        let lowerBundle = bundleId.lowercased()
-                        let lowerName = appName.lowercased()
-                        let isNotification = lowerBundle.contains("notificationcenter") || lowerName.contains("notification center")
-                        
-                        let isValidLayer = (layer >= 0 && layer <= 25) || isNotification
+                        // Layer check: normal app windows (0), Dock (20), Menu Bar (24), Notification Center (-2147483601, 25, etc.), Dropdown Menus (101), Overlays (102)
+                        let isValidLayer = (layer >= 0 && layer <= 102) || (layer == -2147483601)
                         if !isValidLayer {
                             continue
                         }
