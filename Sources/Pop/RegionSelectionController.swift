@@ -74,7 +74,7 @@ final class RegionSelectionController {
                             win.isOnScreen
                                 && win.owningApplication != nil
                                 && win.owningApplication?.bundleIdentifier != myBundle
-                                && win.windowLayer == 0          // Regular app windows only (exclude Dock, wallpaper, menus)
+                                && win.windowLayer >= 0 && win.windowLayer <= 25  // Normal app windows (0), Dock (20), Menu Bar (24), Notifications/floating overlays (25)
                                 && win.frame.width > 40 && win.frame.height > 40
                         }
                         let zIndex = Self.zOrderIndex()
