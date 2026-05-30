@@ -74,7 +74,7 @@ final class RegionSelectionController {
                 }
                 
                 async let candidatesTask: [SnapWindow] = {
-                    let opts: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
+                    let opts: CGWindowListOption = [.optionOnScreenOnly]
                     guard let list = CGWindowListCopyWindowInfo(opts, kCGNullWindowID) as? [[String: Any]] else {
                         return []
                     }
@@ -102,8 +102,8 @@ final class RegionSelectionController {
                             continue
                         }
                         
-                        // Must be visible, have non-trivial size
-                        if boundsW <= 40 || boundsH <= 40 {
+                        // Must be visible, have non-trivial size (allow Menu Bar and status bar icons of height 24-33)
+                        if boundsW <= 16 || boundsH <= 16 {
                             continue
                         }
                         
@@ -151,7 +151,7 @@ final class RegionSelectionController {
     /// Maps each on-screen window number to its front-to-back z-order index (0 = frontmost),
     /// taken from the window server, which — unlike SCShareableContent — is reliably ordered.
     nonisolated private static func zOrderIndex() -> [CGWindowID: Int] {
-        let opts: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
+        let opts: CGWindowListOption = [.optionOnScreenOnly]
         guard let list = CGWindowListCopyWindowInfo(opts, kCGNullWindowID) as? [[String: Any]] else {
             return [:]
         }
@@ -492,32 +492,44 @@ final class SelectionView: NSView {
 
     /// Receive the window list once it has loaded (the freeze is shown before it's ready).
     func setCandidates(_ c: [SnapWindow]) {
+        print("[Pop Debug] setCandidates called with \(c.count) windows")
         candidates = c.compactMap { win in
             var frame = win.frame
             
             // If it is the Dock, we replace its full-screen frame with its actual physical visible frame!
             if win.bundleIdentifier == "com.apple.dock", win.windowLayer == 20 {
                 guard let df = Self.dockFrame(on: screen) else {
+                    print("[Pop Debug] Dock excluded because dockFrame is nil")
                     return nil // Exclude if Dock is hidden/autohide is enabled
                 }
                 frame = df
+                print("[Pop Debug] Mapped Dock to visible frame: \(frame)")
+            }
+            
+            // If it is the Notification Center full-screen window, we replace its frame with the visible banner frame!
+            if win.applicationName == "Notification Center", win.windowLayer == 21 {
+                frame = Self.notificationBannerFrame(on: screen)
+                print("[Pop Debug] Mapped Notification Center full-screen to banner frame: \(frame)")
             }
             
             // Exclude huge utility windows (like desktop backdrops or full-screen overlay containers) in layers > 0
             if win.windowLayer > 0 {
                 // If it spans almost the entire screen, exclude it to prevent hijacking
                 if frame.width >= screen.frame.width - 20 && frame.height >= screen.frame.height - 20 {
+                    print("[Pop Debug] Excluded huge window: \(win.applicationName) (Layer: \(win.windowLayer)) | Frame: \(frame)")
                     return nil
                 }
             }
             
-            return SnapWindow(
+            let snapWin = SnapWindow(
                 windowID: win.windowID,
                 frame: frame,
                 windowLayer: win.windowLayer,
                 bundleIdentifier: win.bundleIdentifier,
                 applicationName: win.applicationName
             )
+            print("[Pop Debug] Candidate Window: \(snapWin.applicationName) | Title: \(win.bundleIdentifier) | Layer: \(snapWin.windowLayer) | Frame: \(snapWin.frame)")
+            return snapWin
         }
         // Light up the window under the cursor now that we know the windows.
         if !didDrag, startPoint == nil { updateHoverFromGlobalMouse() }
@@ -556,6 +568,21 @@ final class SelectionView: NSView {
         }
         
         return nil
+    }
+
+    private static func notificationBannerFrame(on screen: NSScreen) -> CGRect {
+        let menuBarHeight: CGFloat = 33 // Standard on modern macOS with notch
+        
+        let bannerWidth: CGFloat = 348
+        let bannerHeight: CGFloat = 74
+        let rightPadding: CGFloat = 16
+        let topPadding: CGFloat = 16
+        
+        let primary = NSScreen.screens.first(where: { $0.frame.origin == .zero }) ?? screen
+        let cgY = primary.frame.maxY - screen.frame.maxY + menuBarHeight + topPadding
+        let cgX = screen.frame.maxX - bannerWidth - rightPadding
+        
+        return CGRect(x: cgX, y: cgY, width: bannerWidth, height: bannerHeight)
     }
 
     func updateHoverFromGlobalMouse() {
