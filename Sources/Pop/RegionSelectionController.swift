@@ -7,6 +7,8 @@ struct SnapWindow {
     let windowID: CGWindowID
     let frame: CGRect
     let windowLayer: Int
+    let bundleIdentifier: String
+    let applicationName: String
 }
 
 /// Unified capture selection overlay (covers every screen).
@@ -71,28 +73,58 @@ final class RegionSelectionController {
                     }
                 }
                 
-                async let candidatesTask: [SCWindow] = {
-                    let content = try? await ScreenCaptureService.shareableContent()
-                    let myBundle = Bundle.main.bundleIdentifier
-                    var candidates: [SCWindow] = []
-                    if let content {
-                        let filtered = content.windows.filter { win in
-                            let bundleId = win.owningApplication?.bundleIdentifier.lowercased() ?? ""
-                            let appName = win.owningApplication?.applicationName.lowercased() ?? ""
-                            let isNotification = bundleId.contains("notificationcenter") || appName.contains("notification center")
-                            let isValidLayer = (win.windowLayer >= 0 && win.windowLayer <= 25) || isNotification
-                            
-                            return win.isOnScreen
-                                && win.owningApplication != nil
-                                && win.owningApplication?.bundleIdentifier != myBundle
-                                && isValidLayer
-                                && win.frame.width > 40 && win.frame.height > 40
-                        }
-                        let zIndex = Self.zOrderIndex()
-                        candidates = filtered.sorted {
-                            (zIndex[$0.windowID] ?? Int.max) < (zIndex[$1.windowID] ?? Int.max)
-                        }
+                async let candidatesTask: [SnapWindow] = {
+                    let opts: CGWindowListOption = [.optionOnScreenOnly]
+                    guard let list = CGWindowListCopyWindowInfo(opts, kCGNullWindowID) as? [[String: Any]] else {
+                        return []
                     }
+                    
+                    let myBundle = Bundle.main.bundleIdentifier ?? ""
+                    var candidates: [SnapWindow] = []
+                    
+                    for info in list {
+                        guard let windowID = info[kCGWindowNumber as String] as? CGWindowID,
+                              let layer = info[kCGWindowLayer as String] as? Int,
+                              let boundsDict = info[kCGWindowBounds as String] as? [String: Any],
+                              let boundsX = boundsDict["X"] as? CGFloat,
+                              let boundsY = boundsDict["Y"] as? CGFloat,
+                              let boundsW = boundsDict["Width"] as? CGFloat,
+                              let boundsH = boundsDict["Height"] as? CGFloat else {
+                            continue
+                        }
+                        
+                        let ownerPID = info[kCGWindowOwnerPID as String] as? pid_t ?? 0
+                        let appName = info[kCGWindowOwnerName as String] as? String ?? ""
+                        let bundleId = ownerPID > 0 ? (NSRunningApplication(processIdentifier: ownerPID)?.bundleIdentifier ?? "") : ""
+                        
+                        // Skip our own windows
+                        if bundleId == myBundle {
+                            continue
+                        }
+                        
+                        // Must be visible, have non-trivial size (allow Menu Bar and status bar icons of height 24-33)
+                        if boundsW <= 16 || boundsH <= 16 {
+                            continue
+                        }
+                        
+                        // Layer check: normal app windows (0), Dock (20), Menu Bar (24), Notification Center (-2147483601, 25, etc.), Dropdown Menus (101), Overlays (102)
+                        let isValidLayer = (layer >= 0 && layer <= 102) || (layer == -2147483601)
+                        if !isValidLayer {
+                            continue
+                        }
+                        
+                        // CoreGraphics bounds are in CG coordinates (top-left origin).
+                        let frame = CGRect(x: boundsX, y: boundsY, width: boundsW, height: boundsH)
+                        
+                        candidates.append(SnapWindow(
+                            windowID: windowID,
+                            frame: frame,
+                            windowLayer: layer,
+                            bundleIdentifier: bundleId,
+                            applicationName: appName
+                        ))
+                    }
+                    
                     return candidates
                 }()
                 
@@ -119,7 +151,7 @@ final class RegionSelectionController {
     /// Maps each on-screen window number to its front-to-back z-order index (0 = frontmost),
     /// taken from the window server, which — unlike SCShareableContent — is reliably ordered.
     nonisolated private static func zOrderIndex() -> [CGWindowID: Int] {
-        let opts: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
+        let opts: CGWindowListOption = [.optionOnScreenOnly]
         guard let list = CGWindowListCopyWindowInfo(opts, kCGNullWindowID) as? [[String: Any]] else {
             return [:]
         }
@@ -133,7 +165,7 @@ final class RegionSelectionController {
     }
 
     private func present(shots: [CGDirectDisplayID: CGImage],
-                         candidates: [SCWindow],
+                         candidates: [SnapWindow],
                          completion: @escaping (CaptureIntent, NSScreen) -> Void) {
         let finish: (CaptureIntent, NSScreen) -> Void = { [weak self] intent, screen in
             // For region capture, keep the dimming overlay up so there's no bright
@@ -209,8 +241,14 @@ final class RegionSelectionController {
 
     /// Keep the overlay windows visible (they keep dimming the screen behind the
     /// annotation layer) but stop handling keys, so the annotation layer owns all input.
+    /// In multi-monitor setups, this also disables mouse events on all other displays so
+    /// clicking them does not trigger secondary selections or dismiss the active annotation.
     func freeze() {
         if let m = keyMonitor { NSEvent.removeMonitor(m); keyMonitor = nil }
+        for win in windows {
+            // Keep ignoresMouseEvents as false so other displays still swallow clicks
+            (win.contentView as? SelectionView)?.freezeSelection()
+        }
     }
 
     /// Move the committed cut-out (the bright hole in the dim overlay) to a new rect.
@@ -248,7 +286,7 @@ final class SelectionWindow: NSPanel {
         (contentView as? SelectionView)?.updateSnapshot(newSnapshot)
     }
 
-    init(screen: NSScreen, candidates: [SCWindow], snapshot: CGImage?) {
+    init(screen: NSScreen, candidates: [SnapWindow], snapshot: CGImage?) {
         self.displayID = screen.displayID
         super.init(
             contentRect: screen.frame,
@@ -266,6 +304,7 @@ final class SelectionWindow: NSPanel {
         backgroundColor = .clear
         level = .screenSaver
         ignoresMouseEvents = false
+        hidesOnDeactivate = false
         hasShadow = false
         acceptsMouseMovedEvents = true
         collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
@@ -323,7 +362,7 @@ final class SelectionView: NSView {
         needsDisplay = true
     }
 
-    init(frame: NSRect, screen: NSScreen, candidates: [SCWindow], snapshot: CGImage?) {
+    init(frame: NSRect, screen: NSScreen, candidates: [SnapWindow], snapshot: CGImage?) {
         self.screen = screen
         self.snapshot = snapshot
         self.nsSnapshot = snapshot.map { NSImage(cgImage: $0, size: frame.size) }
@@ -337,6 +376,10 @@ final class SelectionView: NSView {
     var snapshotImage: CGImage? { snapshot }
 
     override var acceptsFirstResponder: Bool { true }
+
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+        return true
+    }
 
     override func resetCursorRects() {
         addCursorRect(bounds, cursor: .crosshair)
@@ -356,6 +399,7 @@ final class SelectionView: NSView {
     }
 
     override func mouseMoved(with event: NSEvent) {
+        guard !committed else { return }
         guard !didDrag, startPoint == nil else { return }
         updateHover(at: convert(event.locationInWindow, from: nil))
     }
@@ -459,28 +503,45 @@ final class SelectionView: NSView {
     }
 
     /// Receive the window list once it has loaded (the freeze is shown before it's ready).
-    func setCandidates(_ c: [SCWindow]) {
+    func setCandidates(_ c: [SnapWindow]) {
+        print("[Pop Debug] setCandidates called with \(c.count) windows")
         candidates = c.compactMap { win in
-            let bundleId = win.owningApplication?.bundleIdentifier ?? ""
             var frame = win.frame
             
             // If it is the Dock, we replace its full-screen frame with its actual physical visible frame!
-            if bundleId == "com.apple.dock", win.windowLayer == 20 {
+            if win.bundleIdentifier == "com.apple.dock", win.windowLayer == 20 {
                 guard let df = Self.dockFrame(on: screen) else {
+                    print("[Pop Debug] Dock excluded because dockFrame is nil")
                     return nil // Exclude if Dock is hidden/autohide is enabled
                 }
                 frame = df
+                print("[Pop Debug] Mapped Dock to visible frame: \(frame)")
+            }
+            
+            // If it is the Notification Center full-screen window, we replace its frame with the visible banner frame!
+            if win.applicationName == "Notification Center", win.windowLayer == 21 {
+                frame = Self.notificationBannerFrame(on: screen)
+                print("[Pop Debug] Mapped Notification Center full-screen to banner frame: \(frame)")
             }
             
             // Exclude huge utility windows (like desktop backdrops or full-screen overlay containers) in layers > 0
             if win.windowLayer > 0 {
                 // If it spans almost the entire screen, exclude it to prevent hijacking
                 if frame.width >= screen.frame.width - 20 && frame.height >= screen.frame.height - 20 {
+                    print("[Pop Debug] Excluded huge window: \(win.applicationName) (Layer: \(win.windowLayer)) | Frame: \(frame)")
                     return nil
                 }
             }
             
-            return SnapWindow(windowID: win.windowID, frame: frame, windowLayer: win.windowLayer)
+            let snapWin = SnapWindow(
+                windowID: win.windowID,
+                frame: frame,
+                windowLayer: win.windowLayer,
+                bundleIdentifier: win.bundleIdentifier,
+                applicationName: win.applicationName
+            )
+            print("[Pop Debug] Candidate Window: \(snapWin.applicationName) | Title: \(win.bundleIdentifier) | Layer: \(snapWin.windowLayer) | Frame: \(snapWin.frame)")
+            return snapWin
         }
         // Light up the window under the cursor now that we know the windows.
         if !didDrag, startPoint == nil { updateHoverFromGlobalMouse() }
@@ -521,7 +582,25 @@ final class SelectionView: NSView {
         return nil
     }
 
+    private static func notificationBannerFrame(on screen: NSScreen) -> CGRect {
+        // Dynamically compute the menu bar height on the active screen.
+        // On modern notch screens, this is ~33-38pt; on external or older screens, it is 24pt.
+        let dynamicMenuBarHeight = max(24, screen.frame.maxY - screen.visibleFrame.maxY)
+        
+        let bannerWidth: CGFloat = 344
+        let bannerHeight: CGFloat = 74
+        let rightPadding: CGFloat = 16
+        let topPadding: CGFloat = 16
+        
+        let primary = NSScreen.screens.first(where: { $0.frame.origin == .zero }) ?? screen
+        let cgY = primary.frame.maxY - screen.frame.maxY + dynamicMenuBarHeight + topPadding
+        let cgX = screen.frame.maxX - bannerWidth - rightPadding
+        
+        return CGRect(x: cgX, y: cgY, width: bannerWidth, height: bannerHeight)
+    }
+
     func updateHoverFromGlobalMouse() {
+        guard !committed else { return }
         guard let win = window else { return }
         let global = NSEvent.mouseLocation
         let local = convert(win.convertPoint(fromScreen: global), from: nil)
@@ -534,7 +613,15 @@ final class SelectionView: NSView {
         needsDisplay = true
     }
 
+    func freezeSelection() {
+        committed = true
+        hoveredWindow = nil
+        hoveredLocalRect = nil
+        needsDisplay = true
+    }
+
     private func updateHover(at localPoint: NSPoint) {
+        guard !committed else { return }
         guard let (win, localRect) = topmostWindow(atLocal: localPoint) else {
             if hoveredWindow != nil {
                 hoveredWindow = nil
@@ -594,7 +681,9 @@ final class SelectionView: NSView {
         // screenshot + the single border into the same region. Because the region stays
         // bright throughout, there's no dark frame and thus no jitter during hand-off.
         if committed {
-            if let rect = currentRect { revealBright(rect) }
+            if let rect = currentRect {
+                revealBright(rect)
+            }
             return
         }
 
