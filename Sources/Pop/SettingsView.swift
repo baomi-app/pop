@@ -51,6 +51,8 @@ struct SettingsView: View {
                 Text("默认不保存。开启后每次截图都会按所选目录保存为 PNG。")
                     .font(.callout)
                     .foregroundStyle(.secondary)
+                    .lineLimit(nil)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Section {
@@ -75,10 +77,14 @@ struct SettingsView: View {
                     Text("【推荐】支持 100% HDR 色彩精准还原、无闪烁。系统为了隐私安全会在菜单栏显示录屏小圆点或屏幕共享图标。")
                         .font(.callout)
                         .foregroundStyle(.secondary)
+                        .lineLimit(nil)
+                        .fixedSize(horizontal: false, vertical: true)
                 } else {
                     Text("传统的单次截图。菜单栏【不显示】录屏或共享图标，但 HDR/XDR 屏幕上截图可能出现短暂亮度闪烁，且 HDR 色彩会压缩发灰。")
                         .font(.callout)
                         .foregroundStyle(.secondary)
+                        .lineLimit(nil)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
 
