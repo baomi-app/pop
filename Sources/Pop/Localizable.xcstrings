@@ -664,6 +664,108 @@
         }
       }
     },
+    "截图引擎": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Capture Engine"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "截图引擎"
+          }
+        }
+      }
+    },
+    "引擎类型": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Engine Type"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "引擎类型"
+          }
+        }
+      }
+    },
+    "现代 HDR 引擎": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modern HDR Engine"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "现代 HDR 引擎"
+          }
+        }
+      }
+    },
+    "兼容 SDR 引擎": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Legacy SDR Engine"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "兼容 SDR 引擎"
+          }
+        }
+      }
+    },
+    "【推荐】支持 100% HDR 色彩精准还原、无闪烁。系统为了隐私安全会在菜单栏显示录屏小圆点或屏幕共享图标。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "【Recommended】Supports 100% HDR color fidelity and is flash-free. The system displays a screen recording dot or screen sharing icon in the menu bar for privacy."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "【推荐】支持 100% HDR 色彩精准还原、无闪烁。系统为了隐私安全会在菜单栏显示录屏小圆点或屏幕共享图标。"
+          }
+        }
+      }
+    },
+    "传统的单次截图。菜单栏【不显示】录屏或共享图标，但 HDR/XDR 屏幕上截图可能出现短暂亮度闪烁，且 HDR 色彩会压缩发灰。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Traditional one-shot capture. The menu bar does NOT show any screen sharing/recording icons, but XDR/HDR screens may flash briefly, and HDR colors will be compressed and grayed out."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "传统的单次截图。菜单栏【不显示】录屏或共享图标，但 HDR/XDR 屏幕上截图可能出现短暂亮度闪烁，且 HDR 色彩会压缩发灰。"
+          }
+        }
+      }
+    },
     "默认": {
       "extractionState": "manual",
       "localizations": {

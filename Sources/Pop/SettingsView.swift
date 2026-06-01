@@ -64,6 +64,25 @@ struct SettingsView: View {
             }
 
             Section {
+                Picker("引擎类型", selection: $store.modernEngine) {
+                    Text("现代 HDR 引擎").tag(true)
+                    Text("兼容 SDR 引擎").tag(false)
+                }
+            } header: {
+                Text("截图引擎")
+            } footer: {
+                if store.modernEngine {
+                    Text("【推荐】支持 100% HDR 色彩精准还原、无闪烁。系统为了隐私安全会在菜单栏显示录屏小圆点或屏幕共享图标。")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("传统的单次截图。菜单栏【不显示】录屏或共享图标，但 HDR/XDR 屏幕上截图可能出现短暂亮度闪烁，且 HDR 色彩会压缩发灰。")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Section {
                 Toggle("开机启动", isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { _, newValue in
                         toggleLaunchAtLogin(to: newValue)

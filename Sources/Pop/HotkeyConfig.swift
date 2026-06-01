@@ -46,11 +46,13 @@ final class HotkeyStore: ObservableObject {
     private let saveEnabledKey = "Pop.Save.enabled"
     private let savePathKey = "Pop.Save.path"
     private let toastEnabledKey = "Pop.Toast.enabled"
+    private let modernEngineKey = "Pop.Engine.modern"
 
     @Published var config: HotkeyConfig { didSet { saveHotkey() } }
     @Published var saveEnabled: Bool { didSet { UserDefaults.standard.set(saveEnabled, forKey: saveEnabledKey) } }
     @Published var savePath: URL? { didSet { UserDefaults.standard.set(savePath?.path, forKey: savePathKey) } }
     @Published var toastEnabled: Bool { didSet { UserDefaults.standard.set(toastEnabled, forKey: toastEnabledKey) } }
+    @Published var modernEngine: Bool { didSet { UserDefaults.standard.set(modernEngine, forKey: modernEngineKey) } }
 
     private init() {
         let d = UserDefaults.standard
@@ -68,6 +70,7 @@ final class HotkeyStore: ObservableObject {
             self.savePath = nil
         }
         self.toastEnabled = d.object(forKey: toastEnabledKey) as? Bool ?? true
+        self.modernEngine = d.object(forKey: modernEngineKey) as? Bool ?? false
     }
 
     private func saveHotkey() {

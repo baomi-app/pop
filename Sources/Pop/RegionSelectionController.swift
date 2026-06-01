@@ -55,23 +55,7 @@ final class RegionSelectionController {
         // Overlays are presented only once both are ready, eliminating all race conditions!
         Task { [weak self] in
             do {
-                async let shotsTask: [CGDirectDisplayID: CGImage] = withCheckedThrowingContinuation { continuation in
-                    var shots: [CGDirectDisplayID: CGImage] = [:]
-                    let screens = NSScreen.screens
-                    
-                    Task {
-                        do {
-                            try await ScreenStreamCapturer.shared.start(on: screens) { displayID, cgImage in
-                                shots[displayID] = cgImage
-                                if shots.count == screens.count {
-                                    continuation.resume(returning: shots)
-                                }
-                            }
-                        } catch {
-                            continuation.resume(throwing: error)
-                        }
-                    }
-                }
+                async let shotsTask = self?.captureShots() ?? [:]
                 
                 async let candidatesTask: [SnapWindow] = {
                     let opts: CGWindowListOption = [.optionOnScreenOnly]
@@ -237,6 +221,35 @@ final class RegionSelectionController {
 
         // Stop stream capture after dismissal (deferred by 800ms to hide stop-capture visual drop / indicator fadeout)
         ScreenStreamCapturer.shared.stopDeferred()
+    }
+
+    private func captureShots() async throws -> [CGDirectDisplayID: CGImage] {
+        if HotkeyStore.shared.modernEngine {
+            return try await withCheckedThrowingContinuation { continuation in
+                var shots: [CGDirectDisplayID: CGImage] = [:]
+                let screens = NSScreen.screens
+                Task {
+                    do {
+                        try await ScreenStreamCapturer.shared.start(on: screens) { displayID, cgImage in
+                            shots[displayID] = cgImage
+                            if shots.count == screens.count {
+                                continuation.resume(returning: shots)
+                            }
+                        }
+                    } catch {
+                        continuation.resume(throwing: error)
+                    }
+                }
+            }
+        } else {
+            var shots: [CGDirectDisplayID: CGImage] = [:]
+            for screen in NSScreen.screens {
+                if let img = CGDisplayCreateImage(screen.displayID) {
+                    shots[screen.displayID] = img
+                }
+            }
+            return shots
+        }
     }
 
     /// Keep the overlay windows visible (they keep dimming the screen behind the
