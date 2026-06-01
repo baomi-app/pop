@@ -542,6 +542,7 @@ final class AnnotationOverlayController {
         win.level = .screenSaver
         win.hidesOnDeactivate = false
         win.hasShadow = false
+        win.animationBehavior = .none
         win.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
         win.setFrame(screen.frame, display: true)
 

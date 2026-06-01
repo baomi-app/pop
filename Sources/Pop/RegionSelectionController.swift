@@ -193,12 +193,13 @@ final class RegionSelectionController {
             }
         }
 
-        // Show the frozen overlay windows (at .screenSaver level, covering every display)
-        // and force each to draw its still before it appears, so the first composited frame
-        // is already the dimmed freeze.
+        // Force each window to draw its content into the buffer BEFORE we order it front,
+        // so that the very first composited frame shown on screen is already the fully drawn
+        // dimmed screenshot. This completely prevents the brief "black frame" or "empty frame"
+        // flash during the window appearance transition.
         for win in windows {
-            win.orderFrontRegardless()
             win.contentView?.display()
+            win.orderFrontRegardless()
         }
         // Non-activating panel: make it key for keyboard input. This is a far gentler
         // focus change than NSApp.activate(ignoringOtherApps:), which caused the
@@ -311,15 +312,17 @@ final class SelectionWindow: NSPanel {
             backing: .buffered,
             defer: false
         )
-        // Transparent: the overlay dims the live screen (and later the frozen still drawn on
-        // top), so it must let the screen show through where it isn't painted.
-        isOpaque = false
-        backgroundColor = .clear
+        // Opaque: declaring the window as 100% opaque prevents the macOS Window Server
+        // from performing transparent alpha-blending with the desktop background behind it.
+        // This completely bypasses the EDR dimming and flashing logic under high dynamic range.
+        isOpaque = true
+        backgroundColor = .black
         level = .screenSaver
         ignoresMouseEvents = false
         hidesOnDeactivate = false
         hasShadow = false
         acceptsMouseMovedEvents = true
+        animationBehavior = .none
         collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
         setFrame(screen.frame, display: true)
 
