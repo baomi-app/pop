@@ -3,6 +3,7 @@ import SwiftUI
 import CoreImage
 import CoreImage.CIFilterBuiltins
 import Carbon.HIToolbox
+import Vision
 
 // MARK: - Pixelate (mosaic)
 
@@ -25,6 +26,8 @@ final class OverlayModel: ObservableObject {
     @Published var tool: AnnoKind = .move   // default to move, so a fresh capture can be repositioned right away
     @Published var color: Color = Palette.red
     @Published var lineWidth: CGFloat = 4
+    @Published var recognizedText: String? = nil
+    @Published var isRecognizing: Bool = false
 
     // Wired by the controller to the canvas / completion logic.
     var onUndo: () -> Void = {}
@@ -32,12 +35,62 @@ final class OverlayModel: ObservableObject {
     var onCopy: () -> Void = {}
     var onSave: () -> Void = {}
     var onCancel: () -> Void = {}
+    var onOCR: (() -> Void)? = nil
+}
+
+// MARK: - OCR Preview HUD (SwiftUI)
+
+struct OCRHUDView: View {
+    @Binding var isPresented: Bool
+    let text: String
+    var onCopy: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("识别结果")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.85))
+                Spacer()
+                Button {
+                    onCopy()
+                    isPresented = false
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "doc.on.doc.fill")
+                        Text("复制")
+                    }
+                    .font(.system(size: 11, weight: .semibold))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(RoundedRectangle(cornerRadius: 4).fill(Brand.cornYellow))
+                    .foregroundStyle(Brand.charcoal)
+                }
+                .buttonStyle(.plain)
+            }
+            
+            ScrollView {
+                Text(text)
+                    .font(.system(size: 12, design: .monospaced))
+                    .textSelection(.enabled)
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(8)
+            }
+            .frame(minWidth: 320, maxWidth: 450, minHeight: 120, maxHeight: 250)
+            .background(RoundedRectangle(cornerRadius: 6).fill(Color(white: 0.12)))
+        }
+        .padding(12)
+        .background(Color(white: 0.18))
+        .preferredColorScheme(.dark)
+    }
 }
 
 // MARK: - Toolbar (SwiftUI)
 
 struct AnnotationToolbar: View {
     @ObservedObject var model: OverlayModel
+    @State private var showOCRHUD = false
 
     var body: some View {
         HStack(spacing: 10) {
@@ -87,6 +140,40 @@ struct AnnotationToolbar: View {
             }
             .buttonStyle(.plain)
             .help(String(localized: "清空"))
+            Button(action: {
+                if model.recognizedText != nil {
+                    showOCRHUD.toggle()
+                } else if !model.isRecognizing {
+                    model.recognizedText = nil
+                    model.isRecognizing = true
+                    model.onOCR?()
+                }
+            }) {
+                HStack {
+                    if model.isRecognizing {
+                        ProgressView()
+                            .controlSize(.small)
+                            .scaleEffect(0.7)
+                    } else {
+                        Image(systemName: "text.viewfinder")
+                            .foregroundStyle(model.recognizedText != nil ? Brand.cornYellow : .white.opacity(0.85))
+                    }
+                }
+                .frame(width: 24, height: 24)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help(String(localized: "识别文本 (OCR)"))
+            .popover(isPresented: $showOCRHUD, arrowEdge: .bottom) {
+                OCRHUDView(
+                    isPresented: $showOCRHUD,
+                    text: model.recognizedText ?? "",
+                    onCopy: {
+                        ClipboardService.copyText(model.recognizedText ?? "")
+                        Toast.show(String(localized: "文本已识别并复制"))
+                    }
+                )
+            }
             Divider().frame(height: 20)
             Button(action: model.onCancel) {
                 Image(systemName: "xmark")
@@ -122,6 +209,11 @@ struct AnnotationToolbar: View {
         .background(RoundedRectangle(cornerRadius: 10).fill(Color(white: 0.16)))
         .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(.white.opacity(0.08)))
         .shadow(color: .black.opacity(0.35), radius: 12, y: 4)
+        .onChange(of: model.recognizedText) { _, newValue in
+            if newValue != nil {
+                showOCRHUD = true
+            }
+        }
     }
 
     private func toolButton(_ kind: AnnoKind) -> some View {
@@ -388,6 +480,64 @@ final class AnnotationCanvasView: NSView {
         draft = nil
         annotations.removeAll()
         needsDisplay = true
+    }
+
+    func performOCR() {
+        let cgImage = self.baseCG
+        guard let m = model else { return }
+        m.recognizedText = nil
+        m.isRecognizing = true
+        
+        Task(priority: .userInitiated) {
+            let requestHandler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+            let request = VNRecognizeTextRequest { request, error in
+                if let error = error {
+                    NSLog("[Pop OCR] Text recognition failed: \(error)")
+                    Task { @MainActor in
+                        m.isRecognizing = false
+                        Toast.show(String(localized: "识别失败"))
+                    }
+                    return
+                }
+                
+                guard let observations = request.results as? [VNRecognizedTextObservation] else {
+                    Task { @MainActor in
+                        m.isRecognizing = false
+                        Toast.show(String(localized: "未检测到文本"))
+                    }
+                    return
+                }
+                
+                let recognizedStrings = observations.compactMap { observation in
+                    observation.topCandidates(1).first?.string
+                }
+                
+                let fullText = recognizedStrings.joined(separator: "\n")
+                
+                Task { @MainActor in
+                    m.isRecognizing = false
+                    if fullText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        Toast.show(String(localized: "未检测到文本"))
+                    } else {
+                        m.recognizedText = fullText
+                    }
+                }
+            }
+            
+            request.recognitionLevel = .accurate
+            request.usesLanguageCorrection = true
+            request.recognitionLanguages = ["zh-Hans", "en-US"]
+            
+            do {
+                try requestHandler.perform([request])
+            } catch {
+                NSLog("[Pop OCR] Failed to execute OCR request: \(error)")
+                Task { @MainActor in
+                    m.isRecognizing = false
+                    Toast.show(String(localized: "识别失败"))
+                }
+            }
+        }
     }
 
     /// Composite base + annotations into a CGImage at native resolution.
@@ -673,6 +823,9 @@ final class AnnotationOverlayController {
             guard let img = canvas?.flatten() else { return }
             self?.runSavePanel(img)
         }
+        model.onOCR = { [weak canvas] in
+            canvas?.performOCR()
+        }
 
         // When the move tool pans the capture, keep the dimming hole underneath aligned.
         canvas.onSelRectChanged = { rect in
@@ -738,6 +891,12 @@ final class AnnotationOverlayController {
             // While the Save panel is up, let it handle keys (Esc cancels the panel,
             // not our overlay).
             if self?.savePanelUp == true { return event }
+            
+            // If the user is currently editing text (in the OCR popover or canvas text tool),
+            // let the text view process standard shortcuts like Cmd+C, Cmd+V, Cmd+A, Return, etc.
+            if let firstResponder = self?.window?.firstResponder, firstResponder is NSTextView {
+                return event
+            }
             switch Int(event.keyCode) {
             case kVK_Escape:
                 self?.dismiss(); return nil

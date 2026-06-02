@@ -14,8 +14,8 @@
     "zh": "macOS 截图工具。咔，一爆即得。"
   },
   "description": {
-    "en": "A lightweight, fast screenshot utility for macOS. Hit a hotkey, pick a window or region, then annotate it right on screen — arrows, shapes, text, mosaic — and copy or save. The first kernel of the baomi family.",
-    "zh": "轻量、快速的 macOS 截图工具。按下快捷键，框选窗口或区域，然后直接在屏幕上标注——箭头、图形、文字、马赛克——再复制或保存。苞米家族的第一粒。"
+    "en": "A lightweight, fast screenshot utility for macOS. Hit a hotkey, pick a window or region, then annotate it right on screen — arrows, shapes, text, mosaic — or perform high-accuracy offline OCR to select and copy text directly. The first kernel of the baomi family.",
+    "zh": "轻量、快速的 macOS 截图工具。按下快捷键，框选窗口或区域，然后直接在屏幕上标注——箭头、图形、文字、马赛克——或运行高精度本地离线 OCR 文本识别并划词复制。苞米家族的第一粒。"
   },
   "features": {
     "en": [
@@ -24,6 +24,7 @@
       "Drag to reposition the capture before you mark it up",
       "Return to copy to the clipboard, or save as PNG via a panel",
       "Hover highlighting locks onto the right window, even hotkey-raised ones",
+      "Local offline OCR text recognition with support for mixed Chinese and English, featuring a scrollable and selectable preview HUD",
       "Custom hotkey, local auto-save, and launch-at-login"
     ],
     "zh": [
@@ -32,10 +33,11 @@
       "标注前可拖动截图到任意位置",
       "回车复制到剪贴板，或弹面板保存为 PNG",
       "悬停高亮精准锁定目标窗口（含快捷键唤起的窗口）",
+      "高精度本地离线 OCR 文本识别，支持中英双语混合识别，提供只读划词复制预览弹框",
       "自定义快捷键、本地自动保存、开机自启"
     ]
   },
-  "tech": ["Swift", "SwiftUI", "AppKit", "ScreenCaptureKit"],
+  "tech": ["Swift", "SwiftUI", "AppKit", "ScreenCaptureKit", "Vision"],
   "links": [
     {
       "label": { "en": "Download", "zh": "下载" },

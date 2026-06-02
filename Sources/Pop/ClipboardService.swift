@@ -9,4 +9,10 @@ enum ClipboardService {
         pb.clearContents()
         pb.setData(data, forType: .png)
     }
+
+    static func copyText(_ text: String) {
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.setString(text, forType: .string)
+    }
 }
