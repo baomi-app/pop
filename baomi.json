@@ -14,8 +14,8 @@
     "zh": "macOS 截图工具。咔，一爆即得。"
   },
   "description": {
-    "en": "A lightweight, fast screenshot utility for macOS. Hit a hotkey, pick a window or region, then annotate it right on screen — arrows, shapes, text, mosaic — or perform high-accuracy offline OCR to select and copy text directly. The first kernel of the baomi family.",
-    "zh": "轻量、快速的 macOS 截图工具。按下快捷键，框选窗口或区域，然后直接在屏幕上标注——箭头、图形、文字、马赛克——或运行高精度本地离线 OCR 文本识别并划词复制。苞米家族的第一粒。"
+    "en": "A lightweight, fast screenshot utility for macOS. Hit a hotkey, pick a window or region, then annotate it right on screen — arrows, shapes, text, mosaic — or perform high-accuracy offline OCR to select and copy text directly. The first kernel of the baomi family. (If Gatekeeper blocks launching due to no signature, run: xattr -dr com.apple.quarantine /Applications/Pop.app)",
+    "zh": "轻量、快速的 macOS 截图工具。按下快捷键，框选窗口或区域，然后直接在屏幕上标注——箭头、图形、文字、马赛克——或运行高精度本地离线 OCR 文本识别并划词复制。苞米家族的第一粒。（若因未签名被系统拦截，可在终端运行该命令解决：xattr -dr com.apple.quarantine /Applications/Pop.app）"
   },
   "features": {
     "en": [
