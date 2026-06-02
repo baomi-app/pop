@@ -35,8 +35,9 @@ final class CaptureCoordinator {
             case .region(let image, let rectGlobal):
                 // Region / window: open the in-place annotation overlay at its original spot.
                 // The selection overlay stays up (dimmed) underneath until editing ends.
+                let fullScreen = RegionSelectionController.shared.snapshot(for: screen)
                 AnnotationOverlayController.shared.present(
-                    base: image, rectGlobal: rectGlobal, screen: screen)
+                    base: image, rectGlobal: rectGlobal, screen: screen, fullScreen: fullScreen)
             }
         }
     }

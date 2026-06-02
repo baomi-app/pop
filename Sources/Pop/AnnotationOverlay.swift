@@ -236,11 +236,12 @@ enum AnnotationRenderer {
 // MARK: - Canvas view (AppKit, non-flipped)
 
 final class AnnotationCanvasView: NSView {
-    private let baseCG: CGImage
-    private let baseImage: NSImage
-    private let pixelImage: NSImage?
+    private var baseCG: CGImage
+    private var baseImage: NSImage
+    private var pixelImage: NSImage?
     private var selRect: CGRect          // selection rect in this view's local coords (mutable: move tool pans it)
     private let lineScaleExport: CGFloat // pixel / point
+    private let fullScreenSnapshot: CGImage?
 
     private(set) var annotations: [Annotation] = []
     private var draft: Annotation?
@@ -258,7 +259,13 @@ final class AnnotationCanvasView: NSView {
     /// (It deliberately stays still during the drag.)
     var onMoveEnded: ((CGRect) -> Void)?
 
-    init(baseCG: CGImage, selRect: CGRect, exportScale: CGFloat, model: OverlayModel) {
+    private enum Handle {
+        case topLeft, topRight, bottomLeft, bottomRight
+        case left, right, top, bottom
+    }
+    private var activeHandle: Handle?
+
+    init(baseCG: CGImage, selRect: CGRect, exportScale: CGFloat, model: OverlayModel, fullScreen: CGImage?) {
         self.baseCG = baseCG
         self.selRect = selRect
         self.lineScaleExport = exportScale
@@ -269,6 +276,7 @@ final class AnnotationCanvasView: NSView {
             self.pixelImage = nil
         }
         self.model = model
+        self.fullScreenSnapshot = fullScreen
         super.init(frame: .zero)
     }
 
@@ -283,6 +291,80 @@ final class AnnotationCanvasView: NSView {
 
     override func resetCursorRects() {
         addCursorRect(selRect, cursor: .crosshair)
+        
+        // Resize handles hover cursors
+        addCursorRect(handleRect(for: .left), cursor: .resizeLeftRight)
+        addCursorRect(handleRect(for: .right), cursor: .resizeLeftRight)
+        addCursorRect(handleRect(for: .top), cursor: .resizeUpDown)
+        addCursorRect(handleRect(for: .bottom), cursor: .resizeUpDown)
+        
+        addCursorRect(handleRect(for: .topLeft), cursor: .arrow)
+        addCursorRect(handleRect(for: .topRight), cursor: .arrow)
+        addCursorRect(handleRect(for: .bottomLeft), cursor: .arrow)
+        addCursorRect(handleRect(for: .bottomRight), cursor: .arrow)
+    }
+
+    // MARK: - Resizable Handles Helpers
+
+    private func handleRect(for handle: Handle) -> CGRect {
+        let size: CGFloat = 8
+        let half = size / 2
+        let x: CGFloat
+        let y: CGFloat
+        switch handle {
+        case .topLeft:     x = selRect.minX; y = selRect.maxY
+        case .topRight:    x = selRect.maxX; y = selRect.maxY
+        case .bottomLeft:  x = selRect.minX; y = selRect.minY
+        case .bottomRight: x = selRect.maxX; y = selRect.minY
+        case .left:        x = selRect.minX; y = selRect.midY
+        case .right:       x = selRect.maxX; y = selRect.midY
+        case .top:         x = selRect.midX; y = selRect.maxY
+        case .bottom:      x = selRect.midX; y = selRect.minY
+        }
+        return CGRect(x: x - half, y: y - half, width: size, height: size)
+    }
+
+    private func handle(at point: CGPoint) -> Handle? {
+        let handles: [Handle] = [.topLeft, .topRight, .bottomLeft, .bottomRight, .left, .right, .top, .bottom]
+        for h in handles {
+            if handleRect(for: h).insetBy(dx: -4, dy: -4).contains(point) {
+                return h
+            }
+        }
+        return nil
+    }
+
+    private func crop(_ localRect: NSRect) -> CGImage? {
+        guard let snap = fullScreenSnapshot, bounds.width > 0, bounds.height > 0 else { return nil }
+        let sx = CGFloat(snap.width) / bounds.width
+        let sy = CGFloat(snap.height) / bounds.height
+        let px = CGRect(
+            x: localRect.minX * sx,
+            y: (bounds.height - localRect.maxY) * sy,
+            width: localRect.width * sx,
+            height: localRect.height * sy
+        ).integral
+        return snap.cropping(to: px)
+    }
+
+    private func updateSelectionRect(_ newRect: CGRect) {
+        var finalRect = newRect
+        finalRect.size.width = max(16, finalRect.size.width)
+        finalRect.size.height = max(16, finalRect.size.height)
+        
+        self.selRect = finalRect
+        if let newCG = crop(finalRect) {
+            self.baseCG = newCG
+            self.baseImage = NSImage(cgImage: newCG, size: selRect.size)
+            if let px = Pixelator.pixelate(newCG) {
+                self.pixelImage = NSImage(cgImage: px, size: selRect.size)
+            } else {
+                self.pixelImage = nil
+            }
+        }
+        onSelRectChanged?(selRect)
+        window?.invalidateCursorRects(for: self)
+        needsDisplay = true
     }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
@@ -346,14 +428,34 @@ final class AnnotationCanvasView: NSView {
         border.lineWidth = 1.5
         NSColor(Brand.cornYellow).setStroke()
         border.stroke()
+
+        // Draw 8 circular resize handles
+        let handles: [Handle] = [.topLeft, .topRight, .bottomLeft, .bottomRight, .left, .right, .top, .bottom]
+        for h in handles {
+            let r = handleRect(for: h)
+            let path = NSBezierPath(ovalIn: r)
+            NSColor.white.setFill()
+            path.fill()
+            NSColor(Brand.cornYellow).setStroke()
+            path.lineWidth = 1.5
+            path.stroke()
+        }
     }
 
     // MARK: Mouse
 
     override func mouseDown(with event: NSEvent) {
         let p = convert(event.locationInWindow, from: nil)
-        guard selRect.contains(p) else { return }
+        
         if textField != nil { commitText(); return }
+
+        // Check resize handles first
+        if let h = handle(at: p) {
+            activeHandle = h
+            return
+        }
+
+        guard selRect.contains(p) else { return }
 
         let tool = model?.tool ?? .rect
         if tool == .move {
@@ -371,27 +473,72 @@ final class AnnotationCanvasView: NSView {
     }
 
     override func mouseDragged(with event: NSEvent) {
-        if model?.tool == .move {
-            guard let prev = movePrev else { return }
-            let p = convert(event.locationInWindow, from: nil)
-            selRect.origin.x += p.x - prev.x
-            selRect.origin.y += p.y - prev.y
-            movePrev = p
-            onSelRectChanged?(selRect)
-            needsDisplay = true
+        let p = convert(event.locationInWindow, from: nil)
+        let clampedP = CGPoint(
+            x: min(max(p.x, bounds.minX), bounds.maxX),
+            y: min(max(p.y, bounds.minY), bounds.maxY)
+        )
+
+        if let active = activeHandle {
+            var newRect = selRect
+            switch active {
+            case .left:
+                newRect.origin.x = min(clampedP.x, selRect.maxX - 16)
+                newRect.size.width = selRect.maxX - newRect.origin.x
+            case .right:
+                newRect.size.width = max(16, clampedP.x - selRect.minX)
+            case .bottom:
+                newRect.origin.y = min(clampedP.y, selRect.maxY - 16)
+                newRect.size.height = selRect.maxY - newRect.origin.y
+            case .top:
+                newRect.size.height = max(16, clampedP.y - selRect.minY)
+            case .topLeft:
+                newRect.origin.x = min(clampedP.x, selRect.maxX - 16)
+                newRect.size.width = selRect.maxX - newRect.origin.x
+                newRect.size.height = max(16, clampedP.y - selRect.minY)
+            case .topRight:
+                newRect.size.width = max(16, clampedP.x - selRect.minX)
+                newRect.size.height = max(16, clampedP.y - selRect.minY)
+            case .bottomLeft:
+                newRect.origin.x = min(clampedP.x, selRect.maxX - 16)
+                newRect.size.width = selRect.maxX - newRect.origin.x
+                newRect.origin.y = min(clampedP.y, selRect.maxY - 16)
+                newRect.size.height = selRect.maxY - newRect.origin.y
+            case .bottomRight:
+                newRect.size.width = max(16, clampedP.x - selRect.minX)
+                newRect.origin.y = min(clampedP.y, selRect.maxY - 16)
+                newRect.size.height = selRect.maxY - newRect.origin.y
+            }
+            updateSelectionRect(newRect)
             return
         }
+
+        if model?.tool == .move {
+            guard let prev = movePrev else { return }
+            var newRect = selRect
+            newRect.origin.x += p.x - prev.x
+            newRect.origin.y += p.y - prev.y
+            movePrev = p
+            updateSelectionRect(newRect)
+            return
+        }
+
         guard draft != nil else { return }
-        let p = norm(convert(event.locationInWindow, from: nil))
+        let normP = norm(p)
         if model?.tool == .pen {
-            draft?.points.append(p)
+            draft?.points.append(normP)
         } else {
-            draft?.end = p
+            draft?.end = normP
         }
         needsDisplay = true
     }
 
     override func mouseUp(with event: NSEvent) {
+        if activeHandle != nil {
+            activeHandle = nil
+            onMoveEnded?(selRect)
+            return
+        }
         if movePrev != nil {
             movePrev = nil
             onMoveEnded?(selRect)   // move finished: let the toolbar re-anchor
@@ -488,7 +635,7 @@ final class AnnotationOverlayController {
     /// - base: captured region image (native pixels)
     /// - rectGlobal: selection rect in global screen coords (bottom-left origin)
     /// - screen: the screen the selection is on
-    func present(base: CGImage, rectGlobal: CGRect, screen: NSScreen) {
+    func present(base: CGImage, rectGlobal: CGRect, screen: NSScreen, fullScreen: CGImage?) {
         // Clear only a stale annotation window from a prior run — NOT the selection
         // overlay, which was just set up by this same capture flow and must stay
         // underneath to keep dimming/freezing the screen behind us. (dismiss() would
@@ -509,7 +656,8 @@ final class AnnotationOverlayController {
                                              : screen.backingScaleFactor
 
         let canvas = AnnotationCanvasView(baseCG: base, selRect: selLocal,
-                                          exportScale: exportScale, model: model)
+                                          exportScale: exportScale, model: model,
+                                          fullScreen: fullScreen)
         canvas.frame = NSRect(origin: .zero, size: screen.frame.size)
 
         // Wire toolbar actions.

@@ -125,7 +125,7 @@ final class RegionSelectionController {
     }
 
     /// The frozen still for the given screen.
-    private func snapshot(for screen: NSScreen) -> CGImage? {
+    func snapshot(for screen: NSScreen) -> CGImage? {
         for win in windows where win.displayID == screen.displayID {
             return (win.contentView as? SelectionView)?.snapshotImage
         }
