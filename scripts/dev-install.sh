@@ -10,8 +10,21 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 CONFIG="${1:-Debug}"
-IDENTITY="Pop Dev Self Signed"
-KEYCHAIN="$HOME/Library/Keychains/pop-signing.keychain-db"
+TEAM_ID="HA3AN589MD"
+IDENTITY_HASH=$(security find-certificate -a -c "Apple Development" -Z | awk -v team="$TEAM_ID" '/^SHA-1 hash:/ { hash = $3 } /subj/ { if ($0 ~ team) print hash }' | head -n 1 || true)
+KEYCHAIN=""
+
+# Check if official Apple Development identity for the specific Team ID is available.
+if [ -z "$IDENTITY_HASH" ]; then
+    echo "⚠️  Apple Development identity for Team ID $TEAM_ID not found in keychain."
+    echo "⚠️  Falling back to local self-signed dev identity"
+    IDENTITY="Pop Dev Self Signed"
+    KEYCHAIN="$HOME/Library/Keychains/pop-signing.keychain-db"
+else
+    IDENTITY="$IDENTITY_HASH"
+    echo "✓ Found official Apple Development identity SHA-1: $IDENTITY"
+fi
+
 APP=".build/Build/Products/$CONFIG/Pop.app"
 
 # Regenerate the project if needed (new files in project.yml).
@@ -22,20 +35,35 @@ fi
 
 echo "▸ xcodebuild ($CONFIG)"
 xcodebuild -project Pop.xcodeproj -scheme Pop -configuration "$CONFIG" \
-    -derivedDataPath .build build | tail -3
+    -derivedDataPath .build CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual build | tail -3
 
 echo "▸ re-sign with stable identity: $IDENTITY"
-security unlock-keychain -p pop "$KEYCHAIN" 2>/dev/null || true
+if [ -n "$KEYCHAIN" ]; then
+    security unlock-keychain -p pop "$KEYCHAIN" 2>/dev/null || true
+fi
+
 # Sign nested Mach-O (e.g. Pop.debug.dylib, frameworks) FIRST, otherwise dyld rejects them
 # for having a different signing identity than the re-signed main executable.
 find "$APP/Contents" \( -name "*.dylib" -o -name "*.framework" \) -print0 2>/dev/null \
   | while IFS= read -r -d '' item; do
-        codesign --force --options runtime --sign "$IDENTITY" --keychain "$KEYCHAIN" "$item"
+        if [ -n "$KEYCHAIN" ]; then
+            codesign --force --options runtime --sign "$IDENTITY" --keychain "$KEYCHAIN" "$item"
+        else
+            codesign --force --options runtime --sign "$IDENTITY" "$item"
+        fi
     done
-codesign --force --options runtime \
-    --entitlements App/Pop.entitlements \
-    --sign "$IDENTITY" --keychain "$KEYCHAIN" \
-    "$APP"
+
+if [ -n "$KEYCHAIN" ]; then
+    codesign --force --options runtime \
+        --entitlements App/Pop.entitlements \
+        --sign "$IDENTITY" --keychain "$KEYCHAIN" \
+        "$APP"
+else
+    codesign --force --options runtime \
+        --entitlements App/Pop.entitlements \
+        --sign "$IDENTITY" \
+        "$APP"
+fi
 codesign -d -r- "$APP" 2>&1 | grep designated || true
 
 echo "▸ install to /Applications"

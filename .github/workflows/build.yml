@@ -10,7 +10,7 @@ on:
 
 jobs:
   build:
-    name: Build Pop.app
+    name: Build & Sign Pop.app
     runs-on: macos-15
     permissions:
       contents: write
@@ -27,16 +27,71 @@ jobs:
       - name: Generate Xcode project
         run: xcodegen generate
 
+      - name: Install Apple Certificate
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          KEYCHAIN_PASSWORD: "temporary_keychain_password"
+        run: |
+          # 1. Create variables
+          CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+
+          # 2. Decode certificate from secrets
+          echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o "$CERTIFICATE_PATH"
+
+          # 3. Create temporary keychain
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # 4. Import certificate to keychain
+          security import "$CERTIFICATE_PATH" -k "$KEYCHAIN_PATH" -P "$P12_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security -A
+          
+          # 5. Add keychain to search list
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | sed -e 's/^[[:space:]]*"//' -e 's/"$//')
+
       - name: Build (Release)
         run: |
-          xcodebuild \
-            -project Pop.xcodeproj \
-            -scheme Pop \
-            -configuration Release \
-            -derivedDataPath .build \
-            CODE_SIGN_IDENTITY=- \
-            CODE_SIGN_STYLE=Manual \
-            build
+          # If we are building a tag release, we sign with Developer ID, otherwise ad-hoc.
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            xcodebuild \
+              -project Pop.xcodeproj \
+              -scheme Pop \
+              -configuration Release \
+              -derivedDataPath .build \
+              CODE_SIGN_STYLE=Manual \
+              CODE_SIGN_IDENTITY="Developer ID Application" \
+              DEVELOPMENT_TEAM=HA3AN589MD \
+              build
+          else
+            xcodebuild \
+              -project Pop.xcodeproj \
+              -scheme Pop \
+              -configuration Release \
+              -derivedDataPath .build \
+              CODE_SIGN_IDENTITY=- \
+              CODE_SIGN_STYLE=Manual \
+              build
+          fi
+
+      - name: Code Sign app
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          APP_PATH=".build/Build/Products/Release/Pop.app"
+          
+          # Sign nested binaries first
+          find "$APP_PATH/Contents" \( -name "*.dylib" -o -name "*.framework" \) -print0 2>/dev/null \
+            | while IFS= read -r -d '' item; do
+                  codesign --force --options runtime --sign "Developer ID Application" "$item"
+              done
+          
+          # Sign the app bundle itself
+          codesign --force --options runtime \
+            --entitlements App/Pop.entitlements \
+            --sign "Developer ID Application" \
+            "$APP_PATH"
 
       - name: Verify code signature (identifier must be app.baomi.pop)
         run: |
@@ -48,7 +103,34 @@ jobs:
         id: app
         run: echo "path=.build/Build/Products/Release/Pop.app" >> "$GITHUB_OUTPUT"
 
-      - name: Zip app
+      - name: Notarize App
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          TEAM_ID: ${{ secrets.TEAM_ID }}
+        run: |
+          APP_PATH="${{ steps.app.outputs.path }}"
+          
+          # 1. Zip for notarization submission
+          ditto -c -k --keepParent "$APP_PATH" Pop.zip
+          
+          # 2. Submit for notarization and wait for response
+          xcrun notarytool submit Pop.zip \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_ID_PASSWORD" \
+            --team-id "$TEAM_ID" \
+            --wait
+            
+          # 3. Staple the notarization ticket to the app
+          xcrun stapler staple "$APP_PATH"
+          
+          # 4. Re-create the final notarized zip for distribution
+          rm Pop.zip
+          ditto -c -k --keepParent "$APP_PATH" Pop.zip
+
+      - name: Zip app (Fallback for non-tag builds)
+        if: "!startsWith(github.ref, 'refs/tags/v')"
         run: ditto -c -k --keepParent "${{ steps.app.outputs.path }}" Pop.zip
 
       - name: Upload artifact
@@ -68,3 +150,8 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --title "$TAG" \
             --generate-notes
+
+      - name: Clean up temporary keychain
+        if: always()
+        run: |
+          security delete-keychain $RUNNER_TEMP/app-signing.keychain-db 2>/dev/null || true
