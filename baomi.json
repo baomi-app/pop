@@ -37,10 +37,7 @@
       "自定义快捷键、本地自动保存、开机自启"
     ]
   },
-  "troubleshooting": {
-    "en": "If macOS Gatekeeper prevents the unsigned app from running (damaged or developer unverified), run this command in Terminal to bypass:\n\n`xattr -dr com.apple.quarantine /Applications/Pop.app`",
-    "zh": "如果因未签名导致 macOS Gatekeeper 提示『已损坏无法打开』或『无法验证开发者』，请在终端（Terminal）运行此命令解决：\n\n`xattr -dr com.apple.quarantine /Applications/Pop.app`"
-  },
+
   "tech": ["Swift", "SwiftUI", "AppKit", "ScreenCaptureKit", "Vision"],
   "links": [
     {
