@@ -37,7 +37,24 @@
       "自定义快捷键、本地自动保存、开机自启"
     ]
   },
-
+  "privacy": {
+    "title": {
+      "en": "Pop Privacy Policy",
+      "zh": "Pop 隐私政策"
+    },
+    "summary": {
+      "en": "Privacy policy for the Pop macOS screenshot application.",
+      "zh": "Pop macOS 截图应用隐私政策。"
+    },
+    "updated": {
+      "en": "June 11, 2026",
+      "zh": "2026年6月11日"
+    },
+    "files": {
+      "en": "docs/privacy-policy.md",
+      "zh": "docs/privacy-policy.zh.md"
+    }
+  },
   "tech": ["Swift", "SwiftUI", "AppKit", "ScreenCaptureKit", "Vision"],
   "links": [
     {
